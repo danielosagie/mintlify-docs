@@ -1,6 +1,8 @@
 ---
 title: "Current Documentation (04/29)"
 description: "Here's an overview of the system state and API"
+mode: "wide"
+sidebarTitle: "Quick API Reference"
 ---
 
 **Project Status Overview**
@@ -38,89 +40,86 @@ description: "Here's an overview of the system state and API"
 
 _(Note: Assumes base URL is your deployed backend URL)_
 
-1.  **Authentication**
-\*   **`GET /auth/{platform}/login`**
-\*   **Purpose:** Initiates OAuth flow for a platform. Redirects user.
-\*   **Auth:** None required (starts login).
-\*   **Platform:** `shopify`, `clover`, `square`.
-\*   **Query Params:**
-\*   `userId` (string, required): Your app's internal user ID.
-\*   `finalRedirectUri` (string, required): URL-encoded URI in your frontend to return to.
-\*   `shop` (string, required for Shopify): Shop domain (`your-store.myshopify.com`).
-\*   **Success:** 302 Redirect to Platform Auth URL.
-\*   **Errors:** 400 (missing params), 302 Redirect to `finalRedirectUri` with `status=error` on internal config issue.
-\*   **`GET /auth/{platform}/callback`**
-\*   **Purpose:** Handles the redirect back _from_ the platform after user auth. Exchanges code, saves connection, redirects to FE.
-\*   **Auth:** None (Platform redirects here).
-\*   **Success:** 302 Redirect to `finalRedirectUri` with `?status=success&connection={platform}`.
-\*   **Errors:** 302 Redirect to `finalRedirectUri` with `?status=error&connection={platform}&message=...`.
-
-2.  **Platform Connections**
-\*   **`GET /platform-connections`**
-\*   **Purpose:** Lists the user's currently connected platforms.
-\*   **Auth:** Required (`SupabaseAuthGuard`). Send Supabase JWT as `Bearer` token.
-\*   **Request:** None.
-\*   **Success (200 OK):** `PlatformConnection[]` (Array of connection objects, excluding sensitive credentials). See `PlatformConnection` interface in service.
-\*   **Errors:** 401 (Unauthorized), 500 (DB error).
-\*   **`DELETE /platform-connections/:id`**
-\*   **Purpose:** Disconnects a specific platform connection.
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Request:** None (ID in URL).
-\*   **Success:** 204 No Content.
-\*   **Errors:** 401 (Unauthorized), 404 (Not Found if ID invalid/doesn't belong to user), 500 (DB error).
-
-3.  **Product Draft Creation**
-\*   **`POST /products/analyze`**
-\*   **Purpose:** Analyzes first image, creates draft Product/Variant, optionally saves analysis JSON.
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Rate Limit:** Default applied (e.g., 10/min).
-\*   **Feature Limit:** Checks `aiScans` limit (`FeatureUsageGuard`).
-\*   **Request Body (JSON):** `AnalyzeImagesDto` (expects `{ "imageUris": ["string"] }`, potentially other initial fields).
-\*   **Success (200 OK):** `{ product: SimpleProduct, variant: SimpleProductVariant, analysis?: SimpleAiGeneratedContent }`.
-\*   **Errors:** 401, 429 (Feature limit), 400 (Invalid body), 500 (Internal error, DB failure).
-\*   **`POST /products/generate-details`**
-\*   **Purpose:** Generates detailed listing info using AI based on images/context.
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Rate Limit:** Default applied (e.g., 5/min).
-\*   **Feature Limit:** Currently checks `aiScans`, **SHOULD LIKELY HAVE ITS OWN FEATURE KEY/LIMIT** (e.g., `aiGenerations`). Update `@Feature()` decorator in controller.
-\*   **Request Body (JSON):** `GenerateDetailsDto` (expects `{ productId, variantId, imageUris, coverImageIndex, selectedPlatforms, selectedMatch? }`).
-\*   **Success (200 OK):** `{ generatedDetails: { shopify: { ... }, ... } | null }`.
-\*   **Errors:** 401, 429, 400, 500.
-
-4.  **Sync Engine (Initial Setup Flow)**
-\*   **`POST /sync/connections/:connectionId/start-scan`**
-\*   **Purpose:** Initiates the background job to scan data from a newly connected platform.
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Request:** None (Connection ID in URL).
-\*   **Success (200 OK):** `{ jobId: string }` (ID of the background job).
-\*   **Errors:** 401, 404 (Connection not found for user), 500 (Queueing error).
-\*   **`GET /sync/connections/:connectionId/scan-summary`**
-\*   **Purpose:** Retrieves the results of the initial scan (counts, etc.). _[Logic TBD]_
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Success (200 OK):** `InitialScanResult` object.
-\*   **Errors:** 401, 404, 500.
-\*   **`GET /sync/connections/:connectionId/mapping-suggestions`**
-\*   **Purpose:** Retrieves automatically generated mapping suggestions. _[Logic TBD]_
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Success (200 OK):** `MappingSuggestion[]`.
-\*   **Errors:** 401, 404, 500.
-\*   **`POST /sync/connections/:connectionId/confirm-mappings`**
-\*   **Purpose:** Saves the user's confirmed mappings and sync rules. _[Logic TBD]_
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Request Body (JSON):** `ConfirmMappingsDto`.
-\*   **Success (200 OK):** `{ success: boolean }`.
-\*   **Errors:** 401, 404, 400 (Invalid DTO), 500.
-\*   **`GET /sync/connections/:connectionId/sync-preview`**
-\*   **Purpose:** Generates a preview of actions the initial sync will take. _[Logic TBD]_
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Success (200 OK):** `SyncPreview` object.
-\*   **Errors:** 401, 404, 500.
-\*   **`POST /sync/connections/:connectionId/activate-sync`**
-\*   **Purpose:** Initiates the main initial sync background job based on confirmed settings.
-\*   **Auth:** Required (`SupabaseAuthGuard`).
-\*   **Request:** None.
-\*   **Success (200 OK):** `{ jobId: string }`.
-\*   **Errors:** 401, 404, 500.
+1. **Authentication**
+   \*   **`GET /auth/{platform}/login`**
+   \*   **Purpose:** Initiates OAuth flow for a platform. Redirects user.
+   \*   **Auth:** None required (starts login).
+   \*   **Platform:** `shopify`, `clover`, `square`.
+   \*   **Query Params:**
+   \*   `userId` (string, required): Your app's internal user ID.
+   \*   `finalRedirectUri` (string, required): URL-encoded URI in your frontend to return to.
+   \*   `shop` (string, required for Shopify): Shop domain (`your-store.myshopify.com`).
+   \*   **Success:** 302 Redirect to Platform Auth URL.
+   \*   **Errors:** 400 (missing params), 302 Redirect to `finalRedirectUri` with `status=error` on internal config issue.
+   \*   **`GET /auth/{platform}/callback`**
+   \*   **Purpose:** Handles the redirect back _from_ the platform after user auth. Exchanges code, saves connection, redirects to FE.
+   \*   **Auth:** None (Platform redirects here).
+   \*   **Success:** 302 Redirect to `finalRedirectUri` with `?status=success&connection={platform}`.
+   \*   **Errors:** 302 Redirect to `finalRedirectUri` with `?status=error&connection={platform}&message=...`.
+2. **Platform Connections**
+   \*   **`GET /platform-connections`**
+   \*   **Purpose:** Lists the user's currently connected platforms.
+   \*   **Auth:** Required (`SupabaseAuthGuard`). Send Supabase JWT as `Bearer` token.
+   \*   **Request:** None.
+   \*   **Success (200 OK):** `PlatformConnection[]` (Array of connection objects, excluding sensitive credentials). See `PlatformConnection` interface in service.
+   \*   **Errors:** 401 (Unauthorized), 500 (DB error).
+   \*   **`DELETE /platform-connections/:id`**
+   \*   **Purpose:** Disconnects a specific platform connection.
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Request:** None (ID in URL).
+   \*   **Success:** 204 No Content.
+   \*   **Errors:** 401 (Unauthorized), 404 (Not Found if ID invalid/doesn't belong to user), 500 (DB error).
+3. **Product Draft Creation**
+   \*   **`POST /products/analyze`**
+   \*   **Purpose:** Analyzes first image, creates draft Product/Variant, optionally saves analysis JSON.
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Rate Limit:** Default applied (e.g., 10/min).
+   \*   **Feature Limit:** Checks `aiScans` limit (`FeatureUsageGuard`).
+   \*   **Request Body (JSON):** `AnalyzeImagesDto` (expects `{ "imageUris": ["string"] }`, potentially other initial fields).
+   \*   **Success (200 OK):** `{ product: SimpleProduct, variant: SimpleProductVariant, analysis?: SimpleAiGeneratedContent }`.
+   \*   **Errors:** 401, 429 (Feature limit), 400 (Invalid body), 500 (Internal error, DB failure).
+   \*   **`POST /products/generate-details`**
+   \*   **Purpose:** Generates detailed listing info using AI based on images/context.
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Rate Limit:** Default applied (e.g., 5/min).
+   \*   **Feature Limit:** Currently checks `aiScans`, **SHOULD LIKELY HAVE ITS OWN FEATURE KEY/LIMIT** (e.g., `aiGenerations`). Update `@Feature()` decorator in controller.
+   \*   **Request Body (JSON):** `GenerateDetailsDto` (expects `{ productId, variantId, imageUris, coverImageIndex, selectedPlatforms, selectedMatch? }`).
+   \*   **Success (200 OK):** `{ generatedDetails: { shopify: { ... }, ... } | null }`.
+   \*   **Errors:** 401, 429, 400, 500.
+4. **Sync Engine (Initial Setup Flow)**
+   \*   **`POST /sync/connections/:connectionId/start-scan`**
+   \*   **Purpose:** Initiates the background job to scan data from a newly connected platform.
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Request:** None (Connection ID in URL).
+   \*   **Success (200 OK):** `{ jobId: string }` (ID of the background job).
+   \*   **Errors:** 401, 404 (Connection not found for user), 500 (Queueing error).
+   \*   **`GET /sync/connections/:connectionId/scan-summary`**
+   \*   **Purpose:** Retrieves the results of the initial scan (counts, etc.). _[Logic TBD]_
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Success (200 OK):** `InitialScanResult` object.
+   \*   **Errors:** 401, 404, 500.
+   \*   **`GET /sync/connections/:connectionId/mapping-suggestions`**
+   \*   **Purpose:** Retrieves automatically generated mapping suggestions. _[Logic TBD]_
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Success (200 OK):** `MappingSuggestion[]`.
+   \*   **Errors:** 401, 404, 500.
+   \*   **`POST /sync/connections/:connectionId/confirm-mappings`**
+   \*   **Purpose:** Saves the user's confirmed mappings and sync rules. _[Logic TBD]_
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Request Body (JSON):** `ConfirmMappingsDto`.
+   \*   **Success (200 OK):** `{ success: boolean }`.
+   \*   **Errors:** 401, 404, 400 (Invalid DTO), 500.
+   \*   **`GET /sync/connections/:connectionId/sync-preview`**
+   \*   **Purpose:** Generates a preview of actions the initial sync will take. _[Logic TBD]_
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Success (200 OK):** `SyncPreview` object.
+   \*   **Errors:** 401, 404, 500.
+   \*   **`POST /sync/connections/:connectionId/activate-sync`**
+   \*   **Purpose:** Initiates the main initial sync background job based on confirmed settings.
+   \*   **Auth:** Required (`SupabaseAuthGuard`).
+   \*   **Request:** None.
+   \*   **Success (200 OK):** `{ jobId: string }`.
+   \*   **Errors:** 401, 404, 500.
 
 **Key Data Structures (Briefly)**
 
