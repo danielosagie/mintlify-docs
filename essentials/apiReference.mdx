@@ -1,0 +1,155 @@
+---
+title: "Documentation for Your Team"
+description: "Here's an overview of the system state and API"
+
+**Project Status Overview**
+
+*   **What's Working:**
+    *   Core user authentication (via Supabase JWTs, handled by `SupabaseAuthGuard`).
+    *   OAuth connection flow for Shopify, Square, and Clover (initiating login, handling callbacks, securely storing credentials in `PlatformConnections`).
+    *   Basic rate limiting setup using Upstash/Redis (via `@nestjs/throttler`).
+    *   Feature usage limit checking for `aiScans` using Supabase DB (via `FeatureUsageGuard` and `decrement_ai_scans` RPC).
+    *   Initial product/variant draft creation endpoint (`/products/analyze`) which can (optionally) use SerpApi and store analysis results.
+    *   AI detail generation endpoint (`/products/generate-details`) using placeholder AI service logic.
+    *   Basic endpoints for listing and deleting `PlatformConnections`.
+    *   Skeleton structure for the Sync Engine (modules, services, controllers, processors, adapters) is in place.
+    *   Background job queue setup using BullMQ integrated with Upstash/Redis.
+*   **What's In Progress / Next Steps:**
+    *   **Sync Engine Logic:** Implementing the core logic within the Sync Engine components (Processors, Services, Adapters). This includes:
+        *   Fetching data from platform APIs (Shopify, Square) via `ApiClient` implementations.
+        *   Translating data between platform formats and the canonical model via `Mapper` implementations.
+        *   Generating mapping suggestions (`MappingService`).
+        *   Saving confirmed mappings (`MappingService`).
+        *   Executing initial sync logic in `InitialSyncProcessor`.
+        *   Handling webhooks and ongoing sync in `SyncCoordinatorService`.
+    *   **Canonical Data Services:** Building out `ProductsService`, `InventoryService` (if separated) to reliably manage the canonical data in Supabase.
+    *   **Frontend UI:** Building the UI for the "Guided Sync" review process (displaying suggestions, handling confirmations).
+    *   **Error Handling & Monitoring:** Implementing more comprehensive error handling, logging, and monitoring across the sync engine.
+
+**Core Concepts**
+
+*   **Hub-and-Spoke:** `sssync.app` is the central Hub. All data syncs between an external platform (Spoke) and the Hub. No direct Spoke-to-Spoke sync.
+*   **Canonical Model:** Our Supabase tables (`Products`, `ProductVariants`, `InventoryLevels`, `PlatformProductMappings`, etc.) define the single source of truth.
+*   **Adapters:** Each platform (Shopify, Square, CSV) has dedicated code (ApiClient, Mapper, SyncLogic) to handle its specifics, keeping the core engine clean.
+*   **Background Jobs (BullMQ/Redis):** Long tasks like scanning and syncing run in the background for reliability and responsiveness.
+
+**API Endpoint Documentation**
+
+*(Note: Assumes base URL is your deployed backend URL)*
+
+1.  **Authentication**
+    *   **`GET /auth/{platform}/login`**
+        *   **Purpose:** Initiates OAuth flow for a platform. Redirects user.
+        *   **Auth:** None required (starts login).
+        *   **Platform:** `shopify`, `clover`, `square`.
+        *   **Query Params:**
+            *   `userId` (string, required): Your app's internal user ID.
+            *   `finalRedirectUri` (string, required): URL-encoded URI in your frontend to return to.
+            *   `shop` (string, required for Shopify): Shop domain (`your-store.myshopify.com`).
+        *   **Success:** 302 Redirect to Platform Auth URL.
+        *   **Errors:** 400 (missing params), 302 Redirect to `finalRedirectUri` with `status=error` on internal config issue.
+    *   **`GET /auth/{platform}/callback`**
+        *   **Purpose:** Handles the redirect back *from* the platform after user auth. Exchanges code, saves connection, redirects to FE.
+        *   **Auth:** None (Platform redirects here).
+        *   **Success:** 302 Redirect to `finalRedirectUri` with `?status=success&connection={platform}`.
+        *   **Errors:** 302 Redirect to `finalRedirectUri` with `?status=error&connection={platform}&message=...`.
+
+2.  **Platform Connections**
+    *   **`GET /platform-connections`**
+        *   **Purpose:** Lists the user's currently connected platforms.
+        *   **Auth:** Required (`SupabaseAuthGuard`). Send Supabase JWT as `Bearer` token.
+        *   **Request:** None.
+        *   **Success (200 OK):** `PlatformConnection[]` (Array of connection objects, excluding sensitive credentials). See `PlatformConnection` interface in service.
+        *   **Errors:** 401 (Unauthorized), 500 (DB error).
+    *   **`DELETE /platform-connections/:id`**
+        *   **Purpose:** Disconnects a specific platform connection.
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Request:** None (ID in URL).
+        *   **Success:** 204 No Content.
+        *   **Errors:** 401 (Unauthorized), 404 (Not Found if ID invalid/doesn't belong to user), 500 (DB error).
+
+3.  **Product Draft Creation**
+    *   **`POST /products/analyze`**
+        *   **Purpose:** Analyzes first image, creates draft Product/Variant, optionally saves analysis JSON.
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Rate Limit:** Default applied (e.g., 10/min).
+        *   **Feature Limit:** Checks `aiScans` limit (`FeatureUsageGuard`).
+        *   **Request Body (JSON):** `AnalyzeImagesDto` (expects `{ "imageUris": ["string"] }`, potentially other initial fields).
+        *   **Success (200 OK):** `{ product: SimpleProduct, variant: SimpleProductVariant, analysis?: SimpleAiGeneratedContent }`.
+        *   **Errors:** 401, 429 (Feature limit), 400 (Invalid body), 500 (Internal error, DB failure).
+    *   **`POST /products/generate-details`**
+        *   **Purpose:** Generates detailed listing info using AI based on images/context.
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Rate Limit:** Default applied (e.g., 5/min).
+        *   **Feature Limit:** Currently checks `aiScans`, **SHOULD LIKELY HAVE ITS OWN FEATURE KEY/LIMIT** (e.g., `aiGenerations`). Update `@Feature()` decorator in controller.
+        *   **Request Body (JSON):** `GenerateDetailsDto` (expects `{ productId, variantId, imageUris, coverImageIndex, selectedPlatforms, selectedMatch? }`).
+        *   **Success (200 OK):** `{ generatedDetails: { shopify: { ... }, ... } | null }`.
+        *   **Errors:** 401, 429, 400, 500.
+
+4.  **Sync Engine (Initial Setup Flow)**
+    *   **`POST /sync/connections/:connectionId/start-scan`**
+        *   **Purpose:** Initiates the background job to scan data from a newly connected platform.
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Request:** None (Connection ID in URL).
+        *   **Success (200 OK):** `{ jobId: string }` (ID of the background job).
+        *   **Errors:** 401, 404 (Connection not found for user), 500 (Queueing error).
+    *   **`GET /sync/connections/:connectionId/scan-summary`**
+        *   **Purpose:** Retrieves the results of the initial scan (counts, etc.). *[Logic TBD]*
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Success (200 OK):** `InitialScanResult` object.
+        *   **Errors:** 401, 404, 500.
+    *   **`GET /sync/connections/:connectionId/mapping-suggestions`**
+        *   **Purpose:** Retrieves automatically generated mapping suggestions. *[Logic TBD]*
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Success (200 OK):** `MappingSuggestion[]`.
+        *   **Errors:** 401, 404, 500.
+    *   **`POST /sync/connections/:connectionId/confirm-mappings`**
+        *   **Purpose:** Saves the user's confirmed mappings and sync rules. *[Logic TBD]*
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Request Body (JSON):** `ConfirmMappingsDto`.
+        *   **Success (200 OK):** `{ success: boolean }`.
+        *   **Errors:** 401, 404, 400 (Invalid DTO), 500.
+    *   **`GET /sync/connections/:connectionId/sync-preview`**
+        *   **Purpose:** Generates a preview of actions the initial sync will take. *[Logic TBD]*
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Success (200 OK):** `SyncPreview` object.
+        *   **Errors:** 401, 404, 500.
+    *   **`POST /sync/connections/:connectionId/activate-sync`**
+        *   **Purpose:** Initiates the main initial sync background job based on confirmed settings.
+        *   **Auth:** Required (`SupabaseAuthGuard`).
+        *   **Request:** None.
+        *   **Success (200 OK):** `{ jobId: string }`.
+        *   **Errors:** 401, 404, 500.
+
+**Key Data Structures (Briefly)**
+
+*   `Users`: Stores user info, links to `SubscriptionTiers`.
+*   `SubscriptionTiers`: Defines plan limits (like `AiScans`).
+*   `PlatformConnections`: Stores connection details (type, status, encrypted credentials, rules).
+*   `Products`, `ProductVariants`: Canonical product data.
+*   `InventoryLevels`: Canonical inventory counts (likely per variant *per location concept* eventually).
+*   `PlatformProductMappings`: Links `ProductVariants` (canonical) to platform-specific IDs.
+*   `AiGeneratedContent`: Stores results from `/products/analyze` and `/products/generate-details`.
+*   `ActivityLogs`: (Needs implementation) Tracks sync actions, errors, etc.
+
+**Frontend Considerations**
+
+*   **Authentication:** Manage Supabase JWTs. Send `Bearer` token in `Authorization` header for protected API calls. Handle 401 errors (redirect to login).
+*   **OAuth Flow:**
+    *   Construct the `/auth/{platform}/login` URL correctly (incl. URL-encoded `finalRedirectUri`).
+    *   Use `Linking` or in-app browser to navigate the user.
+    *   Handle the redirect back to the `finalRedirectUri`. Parse `status`, `connection`, `message` query params.
+*   **Guided Sync UI:**
+    *   After successful OAuth callback (status=success), call `POST /sync/connections/:connectionId/start-scan`.
+    *   Potentially poll for scan status or use WebSockets (later).
+    *   Call endpoints to get summary & suggestions.
+    *   Build UI to display suggestions (product matches, field mappings) and allow user confirmation/resolution.
+    *   Send confirmed data via `POST /sync/connections/:connectionId/confirm-mappings`.
+    *   Display sync preview from `GET /sync/connections/:connectionId/sync-preview`.
+    *   Call `POST /sync/connections/:connectionId/activate-sync` on final user confirmation.
+    *   Provide feedback on background job status (requires job status endpoint/polling/WebSockets).
+*   **API Calls:** Call the documented backend endpoints for product creation, detail generation, listing/deleting connections.
+*   **Error Handling:** Handle API errors gracefully (400, 401, 404, 429 - feature limit, 500). Provide clear user feedback.
+*   **State Management:** Keep track of connection statuses, job IDs, product/variant IDs.
+
+This documentation should give your team a much clearer picture of the current state and the path forward for the sync engine. Remember to fill in the `TODO` sections in the code!
