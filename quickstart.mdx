@@ -1,97 +1,82 @@
 ---
-title: 'Quickstart'
-description: 'Start building awesome documentation in under 5 minutes'
+title: 'Quickstart: Using the sssync API'
+description: 'A quick guide to get started with the sssync Node.js/NestJS backend API.'
+icon: 'rocket-launch'
 ---
 
-## Setup your development
+Welcome to the sssync API Quickstart guide! This page will help you get up and running with our **Node.js/NestJS backend API** so you can start making calls and integrating with our services.
 
-Learn how to update your docs locally and deploy them to the public.
+The sssync API enables you to manage multi-channel e-commerce operations, synchronize product data, handle platform connections, and much more.
 
-### Edit and preview
+## 1. Set Up Your Backend Environment
 
-<AccordionGroup>
-  <Accordion icon="github" title="Clone your docs locally">
-    During the onboarding process, we created a repository on your Github with
-    your docs content. You can find this repository on our
-    [dashboard](https://dashboard.mintlify.com). To clone the repository
-    locally, follow these
-    [instructions](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
-    in your terminal.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Preview changes">
-    Previewing helps you make sure your changes look as intended. We built a
-    command line interface to render these changes locally. 
-    1. Install the
-    [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the
-    documentation changes locally with this command: ``` npm i -g mintlify ```
-    2. Run the following command at the root of your documentation (where
-    `docs.json` is): ``` mintlify dev ```
-    <Note>
-      If you’re currently using the legacy ```mint.json``` configuration file, please update the Mintlify CLI:
+Before you can make API calls effectively (especially for anything beyond public, unauthenticated endpoints, if any), you'll typically want the backend running locally or have access to a development instance.
 
+-   **Core Technologies**: Our backend is built with Node.js and the NestJS framework using TypeScript.
+-   **Detailed Setup**: For comprehensive instructions on cloning the repository, installing dependencies (Node.js, npm/yarn), configuring your `.env` file (for database connections, API keys, etc.), and running the NestJS development server, please refer to our main development guide:
 
-      ```npm i -g mintlify@latest```
-      And run the new upgrade command in your docs repository:
+    <Card
+      title="Full Backend Setup Guide"
+      icon="book-spells"
+      href="./README.md" # Assuming README.md is the development guide in the same directory
+    >
+      Detailed steps to set up and run the sssync NestJS backend locally.
+    </Card>
 
-      ```mintlify upgrade```
-      You should now be using the new ```docs.json``` configuration file. Feel free to delete the ```mint.json``` file from your repository.
-    </Note>
-  </Accordion>
-</AccordionGroup>
+## 2. Understand Authentication
 
-### Deploy your changes
+Most sssync API endpoints are protected and require authentication.
 
-<AccordionGroup>
+-   **Method**: We use JWT (JSON Web Tokens) Bearer tokens.
+-   **Obtaining Tokens**: Tokens are typically obtained via Supabase Auth flows.
+-   **Usage**: Include the token in the `Authorization` header of your requests:
+    ```http
+    Authorization: Bearer <YOUR_JWT_TOKEN>
+    ```
 
-<Accordion icon="message-bot" title="Install our Github app">
-  Our Github app automatically deploys your changes to your docs site, so you
-  don't need to manage deployments yourself. You can find the link to install on
-  your [dashboard](https://dashboard.mintlify.com). Once the bot has been
-  successfully installed, there should be a check mark next to the commit hash
-  of the repo.
-</Accordion>
-<Accordion icon="rocket" title="Push your changes">
-  [Commit and push your changes to
-  Git](https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository#about-git-push)
-  for your changes to update in your docs site. If you push and don't see that
-  the Github app successfully deployed your changes, you can also manually
-  update your docs through our [dashboard](https://dashboard.mintlify.com).
-</Accordion>
-
-</AccordionGroup>
-
-## Update your docs
-
-Add content directly in your files with MDX syntax and React components. You can use any of our components, or even build your own.
-
-<CardGroup>
-
-<Card title="Add Content With MDX" icon="file" href="/essentials/markdown">
-  Add content to your docs with MDX syntax.
-</Card>
-
+For more details on authentication, refer to the API Introduction:
 <Card
-  title="Add Code Blocks"
-  icon="square-code"
-  href="/essentials/code"
+  title="API Authentication Details"
+  icon="key"
+  href="./introduction.mdx"
 >
-  Add code directly to your docs with syntax highlighting.
+  Learn more about how authentication works for the sssync API.
 </Card>
 
-<Card
-  title="Add Images"
-  icon="image"
-  href="/essentials/images"
->
-  Add images to your docs to make them more engaging.
-</Card>
+## 3. Explore API Endpoints
 
-<Card
-  title="Add Custom Components"
-  icon="puzzle-piece"
-  href="/essentials/reusable-snippets"
->
-  Add templates to your docs to make them more reusable.
-</Card>
+Once your environment is set up and you understand authentication, you can explore the available API endpoints:
 
-</CardGroup>
+-   **API Reference Pages**: The sidebar of this documentation contains detailed pages for each API resource/controller (e.g., Products, Auth, Sync Engine). These pages describe the endpoints, expected parameters, request bodies, and response schemas.
+-   **OpenAPI Specification**: For a complete technical overview, refer to our OpenAPI specification file. This file powers the interactive API explorer and can be used to generate client SDKs.
+
+    <Card
+      title="View OpenAPI Specification"
+      icon="file-code"
+      href="./api-reference/openapi.json"
+    >
+      Access the full OpenAPI 3.1.0 specification for all endpoints and schemas.
+    </Card>
+
+## 4. Make Your First API Call
+
+1.  **Obtain a JWT Token**: Follow the authentication flow (e.g., log in via a client application that uses Supabase Auth with the backend).
+2.  **Choose an Endpoint**: Select a simple `GET` endpoint from the API Reference section to start with. For example, if there's an endpoint to list your platform connections (`GET /platform-connections`), that could be a good first call.
+3.  **Use a Tool**: Use a tool like Postman, Insomnia, Bruno, or `curl` to make the request.
+
+    **Example (`curl` - replace with actual endpoint and token):**
+    ```bash
+    curl -X GET "https://YOUR_API_DOMAIN/platform-connections" \
+         -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+    ```
+
+    Replace `https://YOUR_API_DOMAIN` with your local development URL (e.g., `http://localhost:3001`) or the deployed API URL, and `<YOUR_JWT_TOKEN>` with your actual token.
+
+4.  **Check the Response**: Review the response status code and body to ensure your request was successful.
+
+## 5. Next Steps
+
+-   **Dive Deeper**: Explore the "Developer Essentials" section for a deeper understanding of the [Backend Architecture](./essentials/backend-architecture.mdx) and [Project Overview](./essentials/project-overview.mdx).
+-   **Full API Reference**: Consult the individual pages under "API Reference" for specifics on each endpoint you need to use.
+
+Happy coding! If you have questions, refer to the relevant sections of this documentation or reach out to the sssync development team.

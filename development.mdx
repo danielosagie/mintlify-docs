@@ -46,6 +46,58 @@ If you attempt to run Mintlify on a port that's already in use, it will use the 
 Port 3000 is already in use. Trying 3001 instead.
 ```
 
+## Backend Development (sssync-bknd)
+
+The sssync backend is a NestJS application located in the `sssync-bknd` directory. To contribute to backend development, you'll need Node.js (v18 or higher recommended) and npm/yarn.
+
+**1. Navigate to the Backend Directory:**
+```bash
+cd ../sssync-bknd # Adjust path if your docs are nested deeper
+```
+
+**2. Install Dependencies:**
+```bash
+npm install
+# or
+yarn install
+```
+
+**3. Environment Variables:**
+   - The backend requires environment variables for configuration (e.g., database connections, API keys, Supabase config).
+   - Create a `.env` file in the `sssync-bknd` root directory by copying from `.env.example` (if it exists) or by creating a new one.
+   - Populate the `.env` file with the necessary values. Key variables include:
+     ```env
+     SUPABASE_URL=your_supabase_url
+     SUPABASE_ANON_KEY=your_supabase_anon_key
+     SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+     DATABASE_URL=your_database_url # Often derived from Supabase settings
+     JWT_SECRET=your_jwt_secret
+     # ... other platform API keys and configurations
+     ```
+
+**4. Run the Development Server:**
+```bash
+npm run start:dev
+# or
+yarn start:dev
+```
+This command usually starts the NestJS application with hot-reloading, typically on `http://localhost:3001` (or another configured port).
+
+**5. Project Structure:**
+For a detailed overview of the backend's architecture and directory layout, please refer to the [Backend Project Structure](./essentials/project-structure.mdx) page.
+
+**Key Backend Technologies:**
+*   **NestJS:** A progressive Node.js framework for building efficient, reliable and scalable server-side applications.
+*   **TypeScript:** Strongly typed programming language that builds on JavaScript.
+*   **Supabase:** Used for database and authentication.
+*   **BullMQ:** For managing background jobs and queues (e.g., for sync processes).
+
+**Common Development Tasks:**
+*   **Adding a new API endpoint:** Create or update a controller, service, and DTOs within the relevant module.
+*   **Modifying business logic:** Update the appropriate service file.
+*   **Database schema changes:** Manage these through Supabase Studio or migrations.
+*   **Working with background jobs:** Interact with BullMQ queues and processors.
+
 ## Mintlify Versions
 
 Please note that each CLI release is associated with a specific version of Mintlify. If your local website doesn't align with the production version, please update the CLI:

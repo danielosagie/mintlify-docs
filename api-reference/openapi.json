@@ -269,7 +269,7 @@
           }
         },
         "responses": {
-          "200": { 
+          "200": {
             "description": "Product published to Shopify successfully (or request queued). Actual response might vary based on implementation (sync vs async product creation on Shopify).",
             "content": {
               "application/json": {

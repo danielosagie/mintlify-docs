@@ -1,0 +1,110 @@
+---
+title: 'Backend Project Structure'
+description: 'Overview of the sssync NestJS backend project structure.'
+icon: 'folder-open'
+---
+
+Understanding the organization of the `sssync-bknd` project is key to navigating the codebase and contributing effectively. This backend is built using the [NestJS](https://nestjs.com/) framework, which promotes a modular and organized architecture.
+
+Below is a typical layout of the `src` directory and an explanation of its main components:
+
+```
+sssync-bknd/
+└── src/
+    ├── main.ts                     # Main application entry point, bootstraps the NestJS app.
+    ├── app.module.ts               # Root module of the application.
+    ├── app.controller.ts           # Basic app controller (e.g., for health checks).
+    ├── app.service.ts              # Basic app service.
+    │
+    ├── auth/                       # Authentication and Authorization
+    │   ├── auth.controller.ts      # Handles login, OAuth callbacks.
+    │   ├── auth.service.ts         # Business logic for authentication.
+    │   ├── auth.module.ts          # NestJS module for auth.
+    │   ├── guards/                 # Authentication guards (e.g., SupabaseAuthGuard).
+    │   └── interfaces/             # TypeScript interfaces for auth (e.g., StatePayload).
+    │
+    ├── canonical-data/             # Core data models and services (platform-agnostic)
+    │   ├── products.service.ts     # Manages canonical products and variants.
+    │   ├── inventory.service.ts    # Manages canonical inventory levels.
+    │   └── canonical-data.module.ts
+    │
+    ├── common/                     # Shared utilities, services, and modules
+    │   ├── supabase.service.ts     # Service for interacting with Supabase.
+    │   ├── encryption.service.ts   # Service for data encryption/decryption.
+    │   ├── types/                  # Common TypeScript types and interfaces.
+    │   └── common.module.ts
+    │
+    ├── config/                     # Application configuration management (e.g., using @nestjs/config).
+    │   └── config.module.ts        # (May contain more specific config files or services)
+    │
+    ├── platform-adapters/          # Adapters for specific e-commerce platforms
+    │   ├── shopify/                # Example: Shopify adapter
+    │   │   ├── shopify.adapter.ts
+    │   │   └── shopify-api-client.service.ts
+    │   ├── square/                 # Example: Square adapter
+    │   │   └── square.adapter.ts
+    │   ├── base-adapter.interface.ts # Common interface for all adapters.
+    │   └── adapter.registry.ts     # Registry to get specific platform adapters.
+    │   └── platform-adapters.module.ts
+    │
+    ├── platform-connections/       # Managing connections to external platforms
+    │   ├── platform-connections.controller.ts
+    │   ├── platform-connections.service.ts
+    │   └── platform-connections.module.ts
+    │
+    ├── platform-product-mappings/  # Linking sssync products to platform-specific products
+    │   ├── platform-product-mappings.service.ts
+    │   └── platform-product-mappings.module.ts
+    │
+    ├── products/                   # Product-related features (API, AI tools)
+    │   ├── products.controller.ts  # Handles product API requests.
+    │   ├── products.service.ts     # Business logic for product operations (including AI).
+    │   ├── products.module.ts
+    │   ├── dto/                    # Data Transfer Objects for product endpoints.
+    │   ├── ai-generation/          # AI content generation services.
+    │   └── image-recognition/      # Image analysis services.
+    │
+    ├── platforms/                  # Potentially for platform-specific configurations or utilities (if not in adapters)
+    │   └── platforms.module.ts
+    │
+    ├── queue-manager/              # (Appears to be related to background job processing - older implementation)
+    ├── queue.interface.ts          # (Appears to be related to background job processing - older implementation)
+    ├── queue.module.ts             # (Appears to be related to background job processing - older implementation)
+    ├── bullmq-queue.service.ts     # (Appears to be related to background job processing using BullMQ - newer)
+    ├── bullmq-queue.ts             # (Appears to be related to background job processing using BullMQ - newer)
+    ├── ultra-low-queue.service.ts  # (Appears to be related to background job processing - older implementation)
+    ├── ultra-low-queue.ts          # (Appears to be related to background job processing - older implementation)
+    │
+    ├── screens/                    # (Purpose unclear from listing, might be UI related if backend serves views, or specific screen data)
+    │
+    ├── sync-engine/                # Core synchronization logic
+    │   ├── sync.controller.ts      # API for sync setup steps.
+    │   ├── webhook.controller.ts   # Handles incoming webhooks from platforms.
+    │   ├── initial-sync.service.ts # Service for the initial scan and sync flow.
+    │   ├── mapping.service.ts      # Service for product mapping suggestions and confirmations.
+    │   ├── sync-coordinator.service.ts # Orchestrates sync operations.
+    │   ├── sync-engine.module.ts
+    │   ├── dto/                    # DTOs for sync engine endpoints.
+    │   └── processors/             # Background job processors (e.g., for BullMQ).
+    │       ├── initial-scan.processor.ts
+    │       └── initial-sync.processor.ts
+    │
+    ├── testing/                    # Utilities or configurations for testing.
+    │
+    └── users/                      # User management (profile, subscription)
+        ├── users.controller.ts
+        ├── users.service.ts
+        └── users.module.ts
+```
+
+### Key Concepts in NestJS Structure:
+
+*   **Modules (`*.module.ts`):** Encapsulate a specific domain or feature (e.g., `AuthModule`, `ProductsModule`). They organize controllers, services, and providers.
+*   **Controllers (`*.controller.ts`):** Handle incoming HTTP requests, route them to appropriate services, and return responses. They are decorated with `@Controller()`.
+*   **Services (`*.service.ts`):** Contain the business logic. They are decorated with `@Injectable()` and are typically injected into controllers or other services.
+*   **DTOs (Data Transfer Objects - often in `dto/` subdirectories):** Define the shape of data for requests and responses. Class-validator is often used with DTOs for input validation.
+*   **Guards (`guards/`):** Implement authorization logic (e.g., checking if a user has the right permissions or a valid session).
+*   **Interfaces (`interfaces/` or `types/`):** Define TypeScript data structures.
+*   **Entities/Models (if using an ORM like TypeORM):** Would typically be in a `entities/` or `model/` directory within a feature module, or a top-level `database/` directory. For sssync, Supabase interactions are often handled within services directly.
+
+This modular structure helps in maintaining separation of concerns and makes the application easier to scale and test. When working on a new feature or fixing a bug, you can usually identify the relevant module and then dive into its controllers and services. 

@@ -4,16 +4,21 @@ description: 'Setting up your local development environment for the sssync NestJ
 icon: 'construction'
 ---
 
-This guide will walk you through the steps to set up and run the sssync backend project on your local machine.
+This guide will walk you through the steps to set up and run the sssync backend project on your local machine. The backend is a Node.js application built with the NestJS framework and TypeScript.
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
--   **Node.js**: We recommend using the latest LTS version (check `.nvmrc` if available, or consult `package.json` engines).
--   **npm** or **yarn**: For managing project dependencies.
+-   **Node.js**: We recommend using the latest LTS version. Check the `.nvmrc` file in the project root if available, or consult the `engines` section in `package.json` for the specific version. You can use a version manager like `nvm` to manage Node.js versions.
+    ```bash
+    # Example: Using nvm to install and use a specific version
+    nvm install 18 # Or the version specified in .nvmrc
+    nvm use 18
+    ```
+-   **npm** or **yarn**: For managing project dependencies. NestJS projects often come with a `package-lock.json` (for npm) or `yarn.lock` file. It's recommended to use the package manager that corresponds to the lock file present.
 -   **Git**: For cloning the repository.
--   **Supabase Account (Optional but Recommended)**: While the backend interacts with Supabase, for local development, you might use provided credentials for a development instance or set up your own. For full end-to-end testing, access to a Supabase project is beneficial.
+-   **Supabase Account (Optional but Recommended)**: While the backend interacts with Supabase, for local development, you might use provided credentials for a development instance or set up your own. For full end-to-end testing, access to a Supabase project is beneficial. You might also consider using the [Supabase CLI](https://supabase.com/docs/guides/cli) for local development and managing migrations.
 -   **Access to Platform Developer Accounts (Optional)**: For testing specific platform integrations (Shopify, Clover, Square), you'll need developer accounts and API keys for those platforms.
 
 ## 1. Clone the Repository
@@ -21,48 +26,59 @@ Before you begin, ensure you have the following installed:
 If you haven't already, clone the `sssync-bknd` repository to your local machine:
 
 ```bash
-git clone <repository-url>
+git clone <repository-url> # Replace <repository-url> with the actual Git URL
 cd sssync-bknd
 ```
 
 ## 2. Install Dependencies
 
-Install the project dependencies using npm or yarn:
+Install the project dependencies using npm or yarn. Check for `package-lock.json` (use npm) or `yarn.lock` (use yarn).
 
 <CodeGroup>
 ```bash npm
+# If package-lock.json exists or you prefer npm
 npm install
 ```
 ```bash yarn
+# If yarn.lock exists or you prefer yarn
 yarn install
 ```
 </CodeGroup>
 
+This will download all the necessary Node.js packages defined in `package.json` into the `node_modules` directory.
+
 ## 3. Environment Configuration (`.env`)
 
-The backend uses environment variables for configuration, including database connections, API keys, and other sensitive settings. You'll need to create a `.env` file in the root of the `sssync-bknd` project.
+The backend uses environment variables for configuration, including database connections, API keys, JWT secrets, and other sensitive settings. NestJS applications commonly use the `dotenv` package (often via `@nestjs/config`) to load these variables from a `.env` file.
 
-Copy the example environment file (if one exists, e.g., `.env.example`) or create a new `.env` file and populate it with the necessary values. Key variables typically include:
+Create a `.env` file in the root of the `sssync-bknd` project. You can usually copy it from an example file if provided:
+
+```bash
+cp .env.example .env # If .env.example exists
+```
+
+Then, populate it with the necessary values. Key variables typically include:
 
 ```env
+# Application Configuration
+NODE_ENV=development
+PORT=3001 # Or your preferred port for the backend server
+
 # Supabase Configuration
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_or_service_role_key # Use service_role for backend operations
 SUPABASE_JWT_SECRET=your_supabase_jwt_secret # Found in your Supabase project's auth settings
 
-# Application Configuration
-PORT=3001 # Or your preferred port for the backend server
-NODE_ENV=development
-ENCRYPTION_SECRET_KEY=a_very_strong_and_long_secret_key_for_data_encryption # Must be 32 bytes (e.g., 64 hex characters)
-
-# JWT Configuration (alternative to Supabase JWT secret if custom JWTs are used for other purposes)
-# JWT_SECRET=another_strong_secret_for_custom_jwts
+# Security
+ENCRYPTION_SECRET_KEY=a_very_strong_and_long_secret_key_for_data_encryption # Must be 32 bytes (e.g., 64 hex characters) for AES-256
+# JWT_SECRET=another_strong_secret_for_custom_jwts_if_not_using_supabase_one
 # JWT_EXPIRY=3600s
 
 # Platform API Keys & Secrets (obtain from respective developer portals)
+# Ensure these are kept secure and are for development/sandbox environments
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret_key
-# SHOPIFY_APP_URL=your_app_url_for_shopify_callbacks (e.g., http://localhost:3001)
+SHOPIFY_APP_URL=http://localhost:3001 # Or your ngrok URL for local Shopify development
 
 SQUARE_APP_ID=your_square_application_id
 SQUARE_ACCESS_TOKEN=your_square_access_token # For sandbox/development
@@ -70,8 +86,9 @@ SQUARE_ENVIRONMENT=sandbox # or production
 
 CLOVER_APP_ID=your_clover_app_id
 CLOVER_APP_SECRET=your_clover_app_secret
+CLOVER_API_URL=https://sandbox.dev.clover.com # For sandbox, use production URL for live
 
-# Redis Configuration (for BullMQ task queue if used extensively)
+# Redis Configuration (if used for BullMQ, caching, etc.)
 # REDIS_HOST=localhost
 # REDIS_PORT=6379
 # REDIS_PASSWORD=
@@ -79,14 +96,17 @@ CLOVER_APP_SECRET=your_clover_app_secret
 # Other service API keys (e.g., AI services)
 # SERPAPI_KEY=your_serpapi_key_for_image_recognition
 # GROQ_API_KEY=your_groq_api_key_for_ai_text_generation
+
+# Logging (NestJS specific, if customized)
+# LOG_LEVEL=debug
 ```
 
 **Important Notes on `.env`:**
 
--   **Never commit your `.env` file** to version control. It should be listed in your `.gitignore` file.
--   Obtain actual API keys and Supabase credentials from project administrators or your own developer accounts.
--   The `ENCRYPTION_SECRET_KEY` is critical for encrypting and decrypting sensitive data like platform credentials stored in the database. Ensure it's strong and kept secure.
--   The `SUPABASE_KEY` should generally be the `service_role` key for backend operations that require bypassing Row Level Security (RLS), but be mindful of its power.
+-   **Never commit your actual `.env` file** to version control. It should be listed in your `.gitignore` file.
+-   Obtain actual API keys and Supabase credentials from project administrators or your own developer accounts for sandbox/test environments.
+-   The `ENCRYPTION_SECRET_KEY` is critical for encrypting and decrypting sensitive data like platform credentials stored in the database. Ensure it's strong (e.g., generated by a password manager or `openssl rand -hex 32`) and kept secure.
+-   For platform callbacks during OAuth flows (like Shopify), you might need to use a tool like `ngrok` to expose your local server to the internet and use the `ngrok` URL in your `.env` and platform app configurations.
 
 ## 4. Running the Application (Development Mode)
 
@@ -101,19 +121,67 @@ yarn start:dev
 ```
 </CodeGroup>
 
-This command typically starts the server with hot-reloading enabled, watching for file changes. By default, the application might run on `http://localhost:3001` (or the port specified in your `.env` file).
+This command, typically defined in `package.json`, starts the server using `nest start --watch`. It enables hot-reloading, so changes to your TypeScript files will automatically recompile and restart the server. By default, the application might run on `http://localhost:3001` (or the port specified in your `PORT` environment variable).
 
-## 5. Database Setup (Supabase)
+Look for output in your terminal indicating the server has started, e.g.:
+```
+[Nest] <timestamp> INFO [NestApplication] Nest application successfully started
+[Nest] <timestamp> INFO [InstanceLoader] Nest microservice successfully started
+[Nest] <timestamp> INFO RoutesResolver Nest application routes mapped
+[Nest] <timestamp> INFO NestFactory Starting Nest application...
+```
 
--   Ensure your Supabase instance (either cloud or local via Supabase CLI) has the necessary tables and schema. Refer to any database migration scripts or schema definitions (`sssync-db.md` or SQL files) in the project.
+## 5. Key Scripts in `package.json`
+
+Familiarize yourself with other useful scripts in the `package.json` file. Common ones in a NestJS project include:
+
+-   `build`: Compiles the TypeScript project to JavaScript (usually in a `dist` folder).
+    ```bash
+    npm run build
+    # or
+    yarn build
+    ```
+-   `start`: Starts the application from the compiled JavaScript (used in production).
+    ```bash
+    npm run start
+    # or
+    yarn start
+    ```
+-   `start:prod`: Starts the application in production mode (often just `node dist/main`).
+-   `lint`: Runs ESLint to check for code style issues.
+    ```bash
+    npm run lint
+    # or
+    yarn lint
+    ```
+-   `test`: Runs unit tests (e.g., using Jest).
+    ```bash
+    npm run test
+    # or
+    yarn test
+    ```
+-   `test:watch`: Runs unit tests in watch mode.
+-   `test:e2e`: Runs end-to-end tests.
+
+## 6. Database Setup (Supabase)
+
+-   Ensure your Supabase instance (either cloud or local via Supabase CLI) has the necessary tables and schema. Refer to any database migration scripts (e.g., in a `supabase/migrations` folder) or schema definitions (`sssync-db.md` or SQL files) in the project.
 -   If you're using a shared development Supabase instance, ensure your `.env` points to it correctly.
--   For a fresh Supabase project, you might need to run initial schema migrations.
+-   For a fresh Supabase project, you might need to run initial schema migrations. If using Supabase CLI locally:
+    ```bash
+    # Link to your remote project (one-time)
+    # supabase link --project-ref YOUR_PROJECT_ID
+    # supabase db pull # If schema exists remotely and you want to sync locally
+    # supabase start # To start local Supabase services
+    # supabase db reset # To apply local migrations
+    # supabase db push # To apply local changes to remote (use with caution)
+    ```
 
 ## Next Steps
 
 With the backend running, you can:
 
--   Explore the API endpoints using a tool like Postman or Insomnia (refer to the API Reference section of this documentation).
+-   Explore the API endpoints using a tool like Postman, Insomnia, or Bruno (refer to the API Reference section of this documentation or `openapi.json`).
 -   Connect a frontend application if available.
 -   Start working on new features or bug fixes!
 

@@ -8,7 +8,7 @@ This document provides a high-level overview of the sssync.app project, extracte
 
 ## 1. What is sssync.app?
 
-**sssync.app** is a multi-channel e-commerce platform designed to simplify inventory management by syncing product data across multiple online marketplaces (e.g., Shopify, Square, Clover, etc.).
+**sssync.app** is a multi-channel e-commerce platform designed to simplify inventory management by syncing product data across multiple online marketplaces (e.g., Shopify, Square, Clover, etc.). It is built with a **Node.js backend, specifically using the NestJS framework**.
 
 The primary goal is to empower both new and established sellers to scale their online operations with minimal friction and maximum efficiency. Beyond core synchronization, the platform aims to unlock new revenue streams through features like an integrated inter-seller marketplace (though the backend initially focuses on the sync engine and core product management).
 
@@ -20,40 +20,40 @@ Developing sssync.app addresses several key pain points for e-commerce sellers:
 -   **Operational Complexity & Cost:** Existing multi-channel solutions can be expensive, overly complex, or not well-suited for small-to-medium-sized sellers.
 -   **Missed Revenue Opportunities:** Without a centralized system, sellers find it difficult to expand to new sales channels or leverage new business models like inter-seller marketplaces efficiently.
 
-## 3. Core Backend Features
+## 3. Core Backend Features (Implemented in Node.js/NestJS)
 
 While the PRD outlines a broad set of features including UI/UX and mobile aspects, the backend development primarily focuses on enabling:
 
 ### Inventory Synchronization
 
--   **Multi-Channel Connectivity:** Building robust API integrations to connect with target marketplaces (Shopify, Clover, Square initially, with others planned).
+-   **Multi-Channel Connectivity:** Building robust API integrations using NestJS services and modules to connect with target marketplaces (Shopify, Clover, Square initially, with others planned).
 -   **Data Synchronization Engine:**
-    -   Real-time or near real-time updates of product information (details, price, inventory levels) between sssync and connected platforms.
+    -   Real-time or near real-time updates of product information (details, price, inventory levels) between sssync and connected platforms, managed by NestJS services and potentially background jobs.
     -   Mechanisms for handling initial data scans from platforms.
-    -   Processing incoming webhooks for events like product updates, new orders (which affect inventory), etc.
-    -   Ensuring data consistency and integrity across all channels.
+    -   Processing incoming webhooks (e.g., via NestJS controllers) for events like product updates, new orders (which affect inventory), etc.
+    -   Ensuring data consistency and integrity across all channels using database transactions and careful service logic.
 -   **Order Data Ingestion (related to Inventory):** While not a full order management system initially, the backend needs to process order information (primarily from webhooks) to accurately update inventory levels.
--   **Error Handling & Logging:** Comprehensive error detection, notification, and logging for all sync operations.
+-   **Error Handling & Logging:** Comprehensive error detection, notification, and logging (e.g., using NestJS's built-in `Logger` and exception filters) for all sync operations.
 
 ### Product Management Core
 
--   **Canonical Product Model:** Maintaining a central, platform-agnostic representation of products and their variants within sssync.
--   **Product Creation & Modification:** APIs to create, read, update, and manage these canonical products, which then form the basis for synchronization.
+-   **Canonical Product Model:** Maintaining a central, platform-agnostic representation of products and their variants within sssync, typically defined using TypeScript interfaces/classes and managed via services that interact with the database.
+-   **Product Creation & Modification:** APIs (NestJS controllers and DTOs) to create, read, update, and manage these canonical products, which then form the basis for synchronization.
 
 ### AI & Automation (Future Enhancements - Backend Support)
 
-The backend will need to support future AI-driven features by:
+The NestJS backend will need to support future AI-driven features by:
 
--   Providing data access for AI models (e.g., product data for matching algorithms).
--   Integrating with AI services for tasks like product detail generation or image analysis.
--   Storing and managing AI-generated content associated with products.
+-   Providing data access for AI models (e.g., product data for matching algorithms via dedicated service methods).
+-   Integrating with AI services (e.g., through HTTP clients like `Axios` or dedicated SDKs wrapped in NestJS services) for tasks like product detail generation or image analysis.
+-   Storing and managing AI-generated content associated with products in the database.
 
-## 4. High-Level Technical Approach (Backend)
+## 4. High-Level Technical Approach (Node.js/NestJS Backend)
 
--   **Technology Stack:** Primarily NestJS (Node.js framework) with TypeScript.
--   **Database:** Supabase (PostgreSQL) for scalable, relational data storage.
--   **API Integrations:** Developing and maintaining individual adapters/clients for each supported e-commerce platform's API.
--   **Asynchronous Operations:** Utilizing queues (e.g., BullMQ) for handling background tasks like large sync operations or webhook processing to ensure API responsiveness.
--   **Security:** Implementing robust authentication (Supabase Auth), authorization, data encryption, and secure credential management for platform APIs.
+-   **Technology Stack:** **Node.js** runtime environment with **NestJS** (a TypeScript-based framework) as the core application framework.
+-   **Database:** Supabase (PostgreSQL) for scalable, relational data storage, accessed via services (e.g., `SupabaseService` or TypeORM/Prisma if integrated).
+-   **API Integrations:** Developing and maintaining individual adapters/clients (as NestJS injectable services/modules) for each supported e-commerce platform's API.
+-   **Asynchronous Operations:** Utilizing queues (e.g., BullMQ with Redis, integrated into NestJS via modules and processors) for handling background tasks like large sync operations or webhook processing to ensure API responsiveness.
+-   **Security:** Implementing robust authentication (Supabase Auth, integrated via NestJS guards), authorization (guards, CASL if needed), data encryption (custom NestJS services), and secure credential management for platform APIs.
 
 Understanding these aspects will provide a solid foundation for contributing to the sssync backend development. 
