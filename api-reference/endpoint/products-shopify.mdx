@@ -1,0 +1,301 @@
+---
+title: 'Shopify Product Operations'
+openapiPath: '../openapi.json'
+---
+
+This section details API endpoints specifically for interacting with products on a connected Shopify store. These operations include publishing products to Shopify, and retrieving Shopify-specific data like locations and inventory levels.
+
+All endpoints require Bearer Token authentication. Common error responses include:
+- `400 Bad Request`: Invalid request payload or parameters (e.g., missing `platformConnectionId`, invalid location IDs).
+- `401 Unauthorized`: Authentication token is missing, invalid, or expired.
+- `404 Not Found`: The requested resource (e.g., sssync product, Shopify connection) does not exist.
+- `429 Too Many Requests`: Rate limit exceeded.
+- `500 Internal Server Error`: An unexpected error occurred on the server, possibly during communication with Shopify.
+
+## Publish Product to Shopify
+
+Publishes a product from the sssync system to a specific Shopify store.
+
+**Method & Path:** `POST /products/{id}/publish/shopify`
+
+**Purpose:**
+This endpoint allows for granular control over how a sssync product (identified by `:id` in the path) is published to a connected Shopify account (identified by `platformConnectionId` in the body). You can specify inventory quantities for different Shopify locations and set Shopify-specific options like product status (e.g., `ACTIVE`, `DRAFT`), vendor, product type, and tags during the publishing process. The system will attempt to create or update the product on Shopify based on the sssync product data and the provided Shopify-specific options.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `id` (string, UUID, required): The ID of the sssync product to publish.
+*   **Request Body**: 
+    - `platformConnectionId` (string, UUID, required): The ID of the Shopify platform connection to use.
+    - `locations` (array, required): An array of objects, each specifying a Shopify `locationId` (e.g., `gid://shopify/Location/12345`) and the `quantity` of the product to assign to that location.
+    - `options` (object, optional): Contains Shopify-specific fields:
+        - `status` (enum: `'ACTIVE'`, `'DRAFT'`, `'ARCHIVED'`): The status of the product on Shopify.
+        - `vendor` (string): The product vendor on Shopify.
+        - `productType` (string): The product type on Shopify.
+        - `tags` (array of strings): Tags to assign to the product on Shopify.
+
+**Example Request:**
+
+Replace `{sssyncProductId}` with the actual sssync product ID (e.g., `prod-uuid-abc-123`).
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products/prod-uuid-abc-123/publish/shopify" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "platformConnectionId": "shopify-conn-uuid-789",
+       "locations": [
+         { "locationId": "gid://shopify/Location/123456789", "quantity": 15 },
+         { "locationId": "gid://shopify/Location/987654321", "quantity": 8 }
+       ],
+       "options": {
+         "status": "ACTIVE",
+         "vendor": "sssync Awesome Goods",
+         "productType": "Electronics",
+         "tags": ["new", "gadget", "tech"]
+       }
+     }'
+```
+
+**Response:**
+- `200 OK`: The request to publish the product to Shopify was processed. The response may indicate immediate success or that the operation has been queued.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "message": "Product publish request processed for Shopify.",
+    "productId": "prod-uuid-abc-123",
+    "shopifyProductId": "gid://shopify/Product/098765432112345"
+  }
+  ```
+  *(The `shopifyProductId` may be returned if the product is created/updated synchronously and the ID is immediately available).* 
+
+- `400 Bad Request`: Often due to invalid `locationId`s or other issues with the request payload.
+    **Example Error Response Body (400 Bad Request):**
+    ```json
+    {
+        "statusCode": 400,
+        "message": "Invalid location ID: gid://shopify/Location/invalid-id",
+        "error": "Bad Request"
+    }
+    ```
+- `404 Not Found`: The specified sssync product `id` or `platformConnectionId` was not found.
+
+Refer to `openapi.json` for detailed schema definitions.
+
+```mdx
+---
+title: 'Publish Product to Shopify'
+openapi: 'POST /products/{id}/publish/shopify'
+---
+```
+
+## Get Shopify Locations
+
+Retrieves a list of all active physical and online locations associated with a given Shopify platform connection.
+
+**Method & Path:** `GET /products/shopify/locations`
+
+**Purpose:**
+This endpoint is useful for understanding where inventory can be stocked and managed on the connected Shopify store. The list of locations can then be used, for example, when publishing products to Shopify to specify inventory quantities per location.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Query Parameter**: `platformConnectionId` (string, UUID, required): The ID of the Shopify platform connection for which to retrieve locations.
+
+**Example Request:**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/products/shopify/locations?platformConnectionId=shopify-conn-uuid-789" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: A list of Shopify locations was successfully retrieved.
+  The response body will conform to the `ShopifyLocationNode` schema array.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "locations": [
+      {
+        "id": "gid://shopify/Location/123456789",
+        "name": "Main Warehouse",
+        "isActive": true
+      },
+      {
+        "id": "gid://shopify/Location/987654321",
+        "name": "Downtown Retail Store",
+        "isActive": true
+      },
+      {
+        "id": "gid://shopify/Location/555555555",
+        "name": "Online Store (Inventory Tracking)",
+        "isActive": true
+      }
+    ]
+  }
+  ```
+- `404 Not Found`: If the specified `platformConnectionId` does not exist or is not a Shopify connection.
+
+Refer to `openapi.json` for the `ShopifyLocationNode` schema definition.
+
+```mdx
+---
+title: 'Get Shopify Locations'
+openapi: 'GET /products/shopify/locations'
+---
+```
+
+## Get Shopify Inventory Levels
+
+Fetches current inventory levels for products/variants from the connected Shopify store.
+
+**Method & Path:** `GET /products/shopify/inventory`
+
+**Purpose:**
+Provides a snapshot of inventory quantities for products as they exist on Shopify. This endpoint can be used to reconcile inventory data or for display purposes. It supports an optional `sync` parameter to ensure the data is fresh.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Query Parameters**:
+    - `platformConnectionId` (string, UUID, required): The ID of the Shopify platform connection.
+    - `sync` (string, optional, enum: `'true'`, `'false'`): If set to `'true'`, the system will attempt to fetch the latest inventory data directly from Shopify before returning the response. If `'false'` or omitted, it may return cached data.
+
+**Example Request (forcing a sync):**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/products/shopify/inventory?platformConnectionId=shopify-conn-uuid-789&sync=true" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: Shopify inventory levels retrieved successfully.
+  The response body will conform to the `ShopifyInventoryResponse` schema.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "inventory": [
+      {
+        "variantId": "sssync-var-uuid-aaa",
+        "sku": "GADGET-001",
+        "title": "Awesome Gadget - Red",
+        "locations": [
+          {
+            "locationId": "gid://shopify/Location/123456789",
+            "locationName": "Main Warehouse",
+            "quantity": 42,
+            "updatedAt": "2024-07-01T14:30:00Z"
+          },
+          {
+            "locationId": "gid://shopify/Location/987654321",
+            "locationName": "Downtown Retail Store",
+            "quantity": 15,
+            "updatedAt": "2024-07-01T14:25:00Z"
+          }
+        ],
+        "productId": "sssync-prod-uuid-bbb",
+        "platformVariantId": "gid://shopify/ProductVariant/1122334455",
+        "platformProductId": "gid://shopify/Product/6677889900"
+      }
+      // ... more products/variants
+    ],
+    "lastSyncedAt": "2024-07-01T14:35:00Z"
+  }
+  ```
+- `404 Not Found`: If the specified `platformConnectionId` does not exist.
+
+Refer to `openapi.json` for the `ShopifyInventoryResponse` schema definition.
+
+```mdx
+---
+title: 'Get Shopify Inventory Levels'
+openapi: 'GET /products/shopify/inventory'
+---
+```
+
+## Get Shopify Locations with Product Inventory
+
+Provides a comprehensive view of inventory distribution across Shopify locations.
+
+**Method & Path:** `GET /products/shopify/locations-with-products`
+
+**Purpose:**
+This endpoint returns a list of Shopify locations, and for each location, it details the products/variants along with their respective inventory quantities stocked at that specific location. It's more granular than the general inventory endpoint if you need a location-centric view of stock. It also supports an optional `sync` parameter for fresh data.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Query Parameters**:
+    - `platformConnectionId` (string, UUID, required): The ID of the Shopify platform connection.
+    - `sync` (string, optional, enum: `'true'`, `'false'`): If set to `'true'`, a fresh data pull from Shopify is attempted.
+
+**Example Request (without forcing sync):**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/products/shopify/locations-with-products?platformConnectionId=shopify-conn-uuid-789" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: Shopify locations with product inventory retrieved successfully.
+  The response body will conform to the `ShopifyLocationsWithProductsResponse` schema.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "locations": [
+      {
+        "id": "gid://shopify/Location/123456789",
+        "name": "Main Warehouse",
+        "isActive": true,
+        "products": [
+          {
+            "variantId": "sssync-var-uuid-aaa",
+            "sku": "GADGET-001",
+            "title": "Awesome Gadget - Red",
+            "quantity": 42,
+            "updatedAt": "2024-07-01T14:30:00Z",
+            "productId": "sssync-prod-uuid-bbb",
+            "platformVariantId": "gid://shopify/ProductVariant/1122334455",
+            "platformProductId": "gid://shopify/Product/6677889900"
+          },
+          {
+            "variantId": "sssync-var-uuid-ccc",
+            "sku": "WIDGET-007-BLUE",
+            "title": "Super Widget - Blue",
+            "quantity": 105,
+            "updatedAt": "2024-07-01T14:32:00Z",
+            "productId": "sssync-prod-uuid-ddd",
+            "platformVariantId": "gid://shopify/ProductVariant/2233445566",
+            "platformProductId": "gid://shopify/Product/7788990011"
+          }
+        ]
+      },
+      {
+        "id": "gid://shopify/Location/987654321",
+        "name": "Downtown Retail Store",
+        "isActive": true,
+        "products": [
+          {
+            "variantId": "sssync-var-uuid-aaa",
+            "sku": "GADGET-001",
+            "title": "Awesome Gadget - Red",
+            "quantity": 15,
+            "updatedAt": "2024-07-01T14:25:00Z",
+            "productId": "sssync-prod-uuid-bbb",
+            "platformVariantId": "gid://shopify/ProductVariant/1122334455",
+            "platformProductId": "gid://shopify/Product/6677889900"
+          }
+        ]
+      }
+      // ... other locations
+    ],
+    "lastSyncedAt": "2024-07-01T14:40:00Z"
+  }
+  ```
+- `404 Not Found`: If the specified `platformConnectionId` does not exist.
+
+Refer to `openapi.json` for the `ShopifyLocationsWithProductsResponse` schema definition.
+
+```mdx
+---
+title: 'Get Shopify Locations with Product Inventory'
+openapi: 'GET /products/shopify/locations-with-products'
+---
+``` 

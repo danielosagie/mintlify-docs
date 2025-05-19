@@ -1,0 +1,130 @@
+---
+title: 'Platform Connections'
+openapiPath: '../openapi.json'
+---
+
+These endpoints are used to manage platform connections for a user. Platform connections represent the link between a user's sssync account and their account on an external platform (e.g., Shopify, Square). All endpoints in this section require authentication (i.e., a valid JWT Bearer token for an authenticated user).
+
+## List Platform Connections
+
+Retrieves a list of all platform connections associated with the authenticated user. This can be used by a client application to display connected accounts, their status (e.g., `syncing`, `error`, `paused`), and type.
+
+**Method & Path:** `GET /platform-connections`
+
+**Expected Headers:**
+*   `Authorization`: `Bearer <YOUR_JWT_TOKEN>`
+
+**Example Request:**
+
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/platform-connections" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 200 OK):** An array of `PlatformConnection` objects. Each object includes non-sensitive fields like `Id`, `UserId`, `PlatformType`, `DisplayName`, `Status`, `IsEnabled`, `LastSyncSuccessAt`, `CreatedAt`, and `UpdatedAt`. Sensitive credentials are not returned.
+
+    **Example Success Response Body (200 OK):**
+    ```json
+    [
+      {
+        "Id": "conn-uuid-123-shopify",
+        "UserId": "user-uuid-abc",
+        "PlatformType": "shopify",
+        "DisplayName": "My Shopify Store",
+        "Status": "syncing",
+        "IsEnabled": true,
+        "LastSyncSuccessAt": "2024-07-01T10:30:00Z",
+        "CreatedAt": "2024-06-15T09:00:00Z",
+        "UpdatedAt": "2024-07-01T10:30:05Z"
+      },
+      {
+        "Id": "conn-uuid-456-square",
+        "UserId": "user-uuid-abc",
+        "PlatformType": "square",
+        "DisplayName": "Main Square POS",
+        "Status": "needs_review",
+        "IsEnabled": true,
+        "LastSyncSuccessAt": null,
+        "CreatedAt": "2024-06-20T14:15:00Z",
+        "UpdatedAt": "2024-06-28T11:00:00Z"
+      }
+    ]
+    ```
+
+*   **On Error (HTTP 401 Unauthorized):** If the JWT is missing, invalid, or expired.
+    Refer to `#/components/responses/Unauthorized` in `openapi.json`.
+
+    **Example Error Response Body (401 Unauthorized):**
+    ```json
+    {
+      "statusCode": 401,
+      "message": "Unauthorized"
+    }
+    ```
+
+*   **On Error (HTTP 500 Internal Server Error):** If there's an unexpected issue fetching connections from the database.
+    Refer to `#/components/schemas/Error` in `openapi.json`.
+
+```mdx
+---
+title: 'List Platform Connections'
+openapi: 'GET /platform-connections'
+---
+```
+
+## Delete Platform Connection
+
+Deletes a specific platform connection by its ID. This will remove the stored (encrypted) credentials for that platform from the sssync system and should cease any future synchronization activities for that connection. This action is permanent for the sssync record.
+
+**Method & Path:** `DELETE /platform-connections/{id}`
+
+**Expected Headers:**
+*   `Authorization`: `Bearer <YOUR_JWT_TOKEN>`
+
+**Path Parameters:**
+*   `id` (string, UUID, required): The UUID of the `PlatformConnection` record to delete.
+
+**Example Request:**
+
+Replace `{connectionId}` with the actual ID of the connection to delete (e.g., `conn-uuid-123-shopify`).
+```bash
+curl -X DELETE "https://YOUR_API_DOMAIN/platform-connections/conn-uuid-123-shopify" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 204 No Content):** Indicates the connection was successfully deleted. No body content is returned.
+
+*   **On Error (HTTP 401 Unauthorized):** If the JWT is missing, invalid, or expired.
+    Refer to `#/components/responses/Unauthorized` in `openapi.json`.
+
+    **Example Error Response Body (401 Unauthorized):**
+    ```json
+    {
+      "statusCode": 401,
+      "message": "Unauthorized"
+    }
+    ```
+
+*   **On Error (HTTP 404 Not Found):** If no platform connection with the given `id` exists for the authenticated user.
+    Refer to `#/components/schemas/Error` in `openapi.json` (adapted for 404).
+
+    **Example Error Response Body (404 Not Found):**
+    ```json
+    {
+      "statusCode": 404,
+      "message": "Platform connection not found",
+      "error": "Not Found"
+    }
+    ```
+
+*   **On Error (HTTP 500 Internal Server Error):** If there's an unexpected issue deleting the connection from the database.
+    Refer to `#/components/schemas/Error` in `openapi.json`.
+
+```mdx
+---
+title: 'Delete Platform Connection'
+openapi: 'DELETE /platform-connections/{id}'
+---
+``` 

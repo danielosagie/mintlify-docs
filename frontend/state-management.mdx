@@ -1,0 +1,61 @@
+---
+title: 'Frontend: State Management'
+description: 'Overview of state management strategies in the sssync mobile application, including React Context and local component state.'
+icon: 'brain-circuit'
+---
+
+State management in the sssync mobile application primarily utilizes React's built-in mechanisms, including the Context API for global or shared state, and component-level state (`useState`, `useReducer`) for local UI and data management.
+
+## Global State with React Context
+
+The application employs the React Context API to manage state that needs to be accessible across different parts of the component tree without prop drilling. Key contexts identified include:
+
+### 1. Authentication Context (`src/contexts/AuthContext.tsx`)
+
+-   **Purpose**: Manages user authentication state, session data, and provides authentication-related functions.
+-   **Provider**: `AuthProvider` wraps parts of the application (likely the entire app after initial loading) to make authentication data available.
+-   **Consumer**: The `useAuth()` hook provides access to the context's value.
+-   **Managed State (Interface: `AuthContextType`, `Session`):
+    -   `sessionData`: An object likely containing the current `session` (which includes `access_token`, `platformConnectionId`, etc.) or `null` if not authenticated.
+-   **Key Functions/Logic**:
+    -   `getSession()`: An asynchronous function called to retrieve and set the current session state, possibly by interacting with `AsyncStorage` or Supabase's session persistence.
+    -   The context likely exposes functions to initiate login, logout, and potentially sign up or handle session refreshes, although these are not explicitly detailed in the provided `AuthContext.tsx` outline (it primarily shows session retrieval).
+
+    *Note on `src/context/AuthContext.ts`*: The file `src/context/AuthContext.ts` defines an `AuthContextType` interface with `signIn`, `signOut`, and `signUp` methods. This suggests it might be an intended interface for a more comprehensive `AuthContext` or a related module. The implementation in `AuthContext.tsx` seems to focus more on session data retrieval. Developers should clarify if these two files are complementary, if one is outdated, or if `AuthContext.tsx` is expected to implement the methods defined in `AuthContext.ts`'s interface.*
+
+### 2. Theme Context (`src/context/ThemeContext.tsx`)
+
+-   **Purpose**: Manages the application's visual theme (e.g., light mode, dark mode) and provides theme-related values (colors, fonts, spacing) to components.
+-   **Provider**: `ThemeProvider` wraps the application to provide theme data.
+-   **Consumer**: The `useTheme()` hook allows components to access the current theme object and potentially a function to toggle the theme.
+-   **Managed State**: Likely includes:
+    -   The current theme mode (`light` or `dark`).
+    -   An object containing theme-specific values (e.g., `colors.primary`, `colors.background`, `fontSizes.body`).
+-   **Key Functions/Logic**:
+    -   A function to toggle the theme (e.g., `toggleTheme()`).
+    -   Logic to persist the selected theme choice (e.g., using `AsyncStorage`).
+
+## Local Component State
+
+For state that is specific to a single component or a small group of related components, standard React state hooks are used:
+
+-   **`useState`**: Used for managing simple state variables like form inputs, loading flags, modal visibility, selected items, etc.
+-   **`useReducer`**: Employed for more complex state logic within a component, especially when the next state depends on the previous one or when state updates involve multiple sub-values.
+
+## Navigation State
+
+-   `react-navigation` library manages its own internal state for navigation stacks, active routes, and route parameters. This state is generally accessed and manipulated via the `navigation` prop or hooks like `useNavigation()` and `useRoute()`.
+
+## Data Fetching and Server Cache State
+
+-   While not explicitly detailed as a global state management tool in the provided outlines, data fetched from the backend API (e.g., user profile, product lists, platform connections) is often stored in local component state.
+-   There isn't an explicit mention of a dedicated server cache state management library like React Query or SWR in the provided contexts. Data fetching, caching, and synchronization logic might be handled manually within screens or custom hooks.
+
+## Best Practices and Considerations
+
+-   **Minimize Global State**: Use global context for state that is genuinely global (e.g., authentication, theme). Prefer local state for data that is only relevant to a specific part of the UI.
+-   **Context Performance**: Be mindful of performance when using Context, as updates to a context value can cause all consuming components to re-render. Optimize by splitting contexts or using `React.memo` where appropriate.
+-   **Clear Separation**: Distinguish between UI state (e.g., loading indicators, input values) and server cache state (data fetched from APIs).
+-   **Type Safety**: Leverage TypeScript for defining the shape of state and context values to ensure type safety throughout the application.
+
+This overview provides a foundational understanding of state management in the sssync mobile app. Developers should refer to the specific implementation within each context and screen for more detailed insights. 

@@ -1,0 +1,80 @@
+---
+title: 'Screen: Onboarding Slides'
+description: 'Documentation for the OnboardingSlides screen, which introduces new users to the app features using a swipeable carousel.'
+icon: 'presentation'
+---
+
+The `OnboardingSlides` screen is presented to new users, typically after an initial splash or welcome screen (like `InitialScreen.tsx`), to introduce the app's key features and benefits through a series of swipeable slides.
+
+Located at `sssync_mobile_test/src/screens/OnboardingSlides.tsx`.
+
+## Key Functionalities
+
+-   **Display Slides**: Renders a sequence of three predefined informational slides. Each slide contains an image (`../assets/`), title, and descriptive text.
+    -   The slides are defined in a `slides` array within the component.
+    -   Uses a memoized `OnboardingSlide` sub-component to render individual slides.
+-   **Navigation through Slides**: Allows users to swipe horizontally to move between slides. Progress is indicated by pagination dots.
+-   **Skip Onboarding**: A "Skip" button in the header allows users to bypass the slides and navigate directly to the `AuthScreen`.
+-   **Proceed/Complete Onboarding**: A "Next" button advances to the next slide. On the last slide, this button changes to "Get Started" and navigates the user to the `AuthScreen`.
+
+## Props
+
+-   **`navigation`**: The React Navigation prop, used to navigate to the `AuthScreen` once onboarding is completed or skipped.
+
+## State Management
+
+-   **`currentIndex`**: Stores the index of the currently displayed slide, used for updating pagination dots and button text.
+-   **`flatListRef`**: A `useRef` hook to control the `FlatList` for programmatic scrolling (e.g., when "Next" is pressed).
+
+## Major Functions & Logic
+
+-   **`renderItem({ item })`**: A function passed to the `FlatList` to render each `OnboardingSlide` component.
+-   **`handleNext()`**: 
+    -   If not on the last slide, scrolls the `FlatList` to the next slide and updates `currentIndex`.
+    -   If on the last slide, navigates to the `Auth` screen.
+-   **`handleSkip()`**: 
+    -   Navigates the user to the `Auth` screen.
+-   **`onMomentumScrollEnd` (on `FlatList`)**: Updates `currentIndex` based on the user's swipe gesture to keep pagination in sync.
+
+## UI Components
+
+-   Uses a `FlatList` with `horizontal` and `pagingEnabled` props to create the swipeable slide carousel.
+-   `AnimatedGradientBackground`: Provides a dynamic background for the screen.
+-   `Button`: Custom button component for "Next" / "Get Started".
+-   Pagination dots are rendered dynamically based on the number of slides and the `currentIndex`.
+
+## Usage Example
+
+The `OnboardingSlides` screen is typically part of an authentication or initial setup stack in the navigation. It's often shown conditionally based on whether the user is new or has already completed onboarding.
+
+```tsx
+// Example in an Auth Stack Navigator (e.g., AppNavigator.tsx)
+import InitialScreen from './path/to/InitialScreen';
+import OnboardingSlides from './path/to/OnboardingSlides';
+import AuthScreen from './path/to/AuthScreen';
+// ... other imports
+
+const Auth = createNativeStackNavigator(); // Or your specific stack navigator
+
+// This assumes `isFirstLaunch` is determined, perhaps from AsyncStorage
+// or some other mechanism to check if onboarding has been completed.
+const AuthStack = ({ isFirstLaunch, devForceOnboarding }) => (
+  <Auth.Navigator screenOptions={{ headerShown: false }}>
+    {/* 
+      The InitialScreen might decide to navigate to OnboardingSlides or Auth directly 
+      based on checks like auth state or if onboarding was completed.
+      Alternatively, OnboardingSlides could be the initial route if always shown to new users.
+    */}
+    <Auth.Screen name="InitialScreen" component={InitialScreen} />
+    <Auth.Screen name="OnboardingSlides" component={OnboardingSlides} />
+    <Auth.Screen name="Auth" component={AuthScreen} />
+    {/* ... other screens in auth flow like CreateAccountScreen ... */}
+  </Auth.Navigator>
+);
+
+export default AuthStack;
+```
+
+In this flow, `InitialScreen` might navigate to `OnboardingSlides`, which then navigates to `AuthScreen` upon completion or skip.
+
+This screen is crucial for a positive first-time user experience, providing a quick and engaging introduction to the sssync app's value proposition. 

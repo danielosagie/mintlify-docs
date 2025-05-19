@@ -1,0 +1,105 @@
+---
+title: 'Screen: Phone Authentication'
+description: 'Documentation for the PhoneAuthScreen, handling user authentication via phone number and OTP using Supabase.'
+icon: 'smartphone-message'
+---
+
+The `PhoneAuthScreen` facilitates user authentication using their phone number and a One-Time Password (OTP) sent via SMS, leveraging Supabase for the authentication flow. Upon successful verification, it navigates to the `CreateAccountScreen`.
+
+Located at `sssync_mobile_test/src/screens/PhoneAuthScreen.tsx`.
+
+*Note: While this screen implements phone authentication, its integration into the main navigation flow (e.g., `AuthStackParamList` in `AppNavigator.tsx`) might vary or it might be conditionally used. If it was previously commented out or removed from active navigation, this documentation serves to detail its functionality based on the available source code.*
+
+## Key Functionalities
+
+-   **Phone Number Input**: Allows users to enter their phone number using the `react-native-phone-number-input` component, which supports country code selection and number formatting.
+-   **Send OTP**: 
+    -   Calls `supabase.auth.signInWithOtp({ phone: formattedValue })` to send an OTP to the entered and formatted phone number.
+    -   Manages a loading state and displays alerts for success or failure.
+-   **OTP Input**: Provides six individual `TextInput` fields for the user to enter the 6-digit OTP received.
+    -   Includes auto-focus to the next input field upon digit entry.
+-   **Verify OTP**: 
+    -   Submits the entered OTP (joined into a string) and the formatted phone number to `supabase.auth.verifyOtp({ phone: formattedValue, token: otpString, type: 'sms' })`.
+    -   On successful verification (`data.session` is present), navigates the user to `CreateAccountScreen`.
+    -   Displays alerts for errors (e.g., incorrect OTP, no session received).
+-   **Resend OTP**: A "Resend OTP" option is available, which re-triggers `handleSendOtp`.
+-   **Navigation**: 
+    -   Includes a "← Back" button to navigate to the previous screen.
+    -   Navigates to `CreateAccountScreen` upon successful OTP verification.
+
+## Route Params (`PhoneAuthScreenRouteParams`)
+
+-   **`phoneNumber` (Optional)**: The screen can receive a `phoneNumber` as a route parameter (e.g., from `AuthScreen`). If provided, it's used to pre-fill the phone number input, and the input field might be disabled.
+
+## State Management
+
+-   `phoneNumber`: The raw phone number entered by the user.
+-   `formattedValue`: The E.164 formatted phone number from `PhoneInput`.
+-   `countryCode`: The selected country code (e.g., "US").
+-   `otp`: An array of 6 strings, each holding one digit of the OTP.
+-   `loading`: Boolean for managing loading state during API calls (sending/verifying OTP).
+-   `otpSent`: Boolean to toggle UI between phone input and OTP input views.
+-   `focusedOtpIndex`: Tracks which OTP input field is currently focused.
+
+## Major Functions & Logic
+
+-   **`useEffect` (on `passedPhoneNumber`)**: Sets the `formattedValue` if a `phoneNumber` is passed via route params.
+-   **`handleSendOtp()`**:
+    -   Validates the phone number using `phoneInputRef.current?.isValidNumber()`.
+    -   Calls `supabase.auth.signInWithOtp`.
+    -   Updates UI to `otpSent = true` and focuses the first OTP input.
+-   **`handleVerifyOtp()`**:
+    -   Validates the 6-digit OTP.
+    -   Calls `supabase.auth.verifyOtp`.
+    -   On success, navigates to `CreateAccountScreen`.
+-   **OTP Input Handling**:
+    -   `handleOtpChange(text: string, index: number)`: Updates the `otp` array and auto-advances focus to the next OTP input.
+    -   `handleOtpKeyPress(e: any, index: number)`: Handles backspace to clear previous OTP input and shift focus.
+
+## Usage Example
+
+`PhoneAuthScreen` would typically be part of an authentication stack, potentially linked from a primary login/signup screen (`AuthScreen`).
+
+```tsx
+// Example of navigating to PhoneAuthScreen (e.g., from AuthScreen.tsx)
+
+// In AuthScreen.tsx:
+// ...
+// const handleSignInWithPhone = () => {
+//   // Optionally, pass the phone number if collected on AuthScreen
+//   navigation.navigate('PhoneAuthScreen', { phoneNumber: prefilledPhoneNumber });
+// };
+// ...
+// <Button title="Sign In with Phone" onPress={handleSignInWithPhone} />
+// ...
+
+
+// In AppNavigator.tsx (or a nested Auth Stack):
+// Ensure PhoneAuthScreen is part of your navigator's screen definitions.
+// export type AuthStackParamList = {
+//   Auth: undefined;
+//   PhoneAuthScreen: { phoneNumber?: string } | undefined; // Optional phoneNumber param
+//   CreateAccountScreen: undefined;
+//   // ... other auth screens
+// };
+
+// const Auth = createNativeStackNavigator<AuthStackParamList>();
+
+// const AuthNavigator = () => (
+//   <Auth.Navigator initialRouteName="Auth">
+//     <Auth.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+//     <Auth.Screen name="PhoneAuthScreen" component={PhoneAuthScreen} options={{ headerShown: false }} />
+//     <Auth.Screen name="CreateAccountScreen" component={CreateAccountScreen} options={{ headerShown: false }} />
+//   </Auth.Navigator>
+// );
+```
+
+## UI Components
+
+-   `react-native-phone-number-input`: For formatted phone number input.
+-   Multiple `TextInput` components for individual OTP digits, styled for a typical OTP entry experience.
+-   Custom `Button` component.
+-   `AnimatedGradientBackground` for styling.
+-   `KeyboardAvoidingView` to prevent the keyboard from obscuring inputs.
+
+This screen provides an alternative authentication method focusing on mobile numbers and OTPs, integrated with Supabase Auth. 

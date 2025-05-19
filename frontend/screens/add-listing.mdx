@@ -1,0 +1,151 @@
+---
+title: 'Screen: Add Listing'
+description: 'Documentation for the AddListingScreen, responsible for the multi-stage process of creating and publishing new product listings.'
+icon: 'file-plus'
+---
+
+The `AddListingScreen` is a core component of the sssync mobile application, guiding the user through a multi-step process to create a new product listing. This includes selecting platforms, inputting images, AI-powered analysis and content generation, form review, and finally publishing or saving the listing.
+
+Located at `sssync_mobile_test/src/screens/AddListingScreen.tsx`.
+
+## Key Functionalities & Stages
+
+The screen manages its flow through different stages, defined by the `ListingStage` enum:
+
+-   **`PLATFORM_SELECTION`**: User selects the target e-commerce platforms for the new listing.
+-   **`IMAGE_INPUT`**: User captures images/videos using the camera or selects them from the device library. This stage utilizes the `CameraSection` component.
+-   **`ANALYZING`**: Loading state shown while the backend's `/products/analyze` endpoint processes the images.
+-   **`VISUAL_MATCH`**: Displays visual matches found by the AI analysis, allowing the user to select a relevant match to guide further content generation.
+-   **`GENERATING`**: Loading state shown while the backend's `/products/generate-details` endpoint generates product information.
+-   **`FORM_REVIEW`**: User reviews and edits the AI-generated (or manually entered) product details for each selected platform. This stage handles complex form interactions and platform-specific fields.
+-   **`PUBLISHING`**: Loading state shown while the product is being saved as a draft or published to selected platforms via backend endpoints like `/products/publish` or `/products/{id}/publish/shopify`.
+
+## Core Data Structures & Interfaces
+
+The screen utilizes several important data structures to manage listing data:
+
+-   **`VisualMatch`**: Represents a visual match item returned from image analysis (e.g., from SerpApi).
+-   **`BackendAnalysisResponse`**: Structure of the response from the `/products/analyze` backend endpoint.
+-   **`GeneratedPlatformDetails`**: A comprehensive interface for product details tailored to specific platforms. It includes common fields (title, description, price, tags, etc.) and platform-specific attributes (e.g., Shopify status, Square GTIN, eBay listing format).
+-   **`GenerateDetailsResponse`**: Structure of the response from the `/products/generate-details` backend endpoint, containing generated details mapped by platform key.
+-   **`ImageInfo`, `CapturedMediaItem`**: Interfaces for managing image and video media captured or selected by the user.
+-   **Shopify-specific interfaces**: `ShopifyLocation`, `ShopifyLocationWithQuantity`, `ShopifyPublishResponse`, `ShopifyOption`, `ShopifyInventoryItem`, `ShopifyInventoryQuantity`, `ShopifyVariant`, `ShopifyProductInput` are used when interacting with Shopify, particularly in the `FORM_REVIEW` stage for publishing.
+
+## Key Props (`AddListingScreenProps`)
+
+-   **`route.params.initialData` (Optional)**: Allows the screen to be initialized with existing listing data for editing purposes. This can include:
+    -   `title`, `description`, `price`, `sku`, `barcode`, `images`
+    -   `platformDetails`: Pre-existing details for various platforms.
+    -   `status`: Shopify product status.
+    -   `initialStage`: To start the screen at a specific `ListingStage`.
+    -   `productId`, `variantId`: IDs of existing product/variant.
+    -   `uploadedImageUrls`: URLs of already uploaded images.
+
+## State Management
+
+The screen manages a significant amount of state, including:
+
+-   `currentStage`: The active `ListingStage`.
+-   `selectedPlatforms`: Array of platform keys selected by the user.
+-   `capturedMedia`: Array of `CapturedMediaItem` representing user-provided images/videos.
+-   `uploadedImageUrls`: URLs of images after uploading to Supabase.
+-   `analysisResult`, `generatedDetails`: Data returned from backend AI services.
+-   `formData`: An object holding all product details for each platform, structured according to `GeneratedPlatformDetails`.
+-   `productId`, `variantId`: IDs for the product and variant being created/edited.
+-   Loading states (`isLoading`, `isAnalyzing`, `isGenerating`, `isPublishing`).
+-   Modal visibility states (e.g., `platformModalVisible`, `publishModalVisible`).
+-   Shopify-specific state: `shopifyLocations`, `selectedShopifyLocationsWithQuantities`.
+
+## Major Functions & Logic
+
+-   **Navigation between Stages**: Functions like `handlePlatformsSelected`, `handleMediaCaptured`, `triggerImageAnalysis`, `triggerDetailsGeneration`, `handleProceedWithoutMatch`, `handleSelectMatchForGeneration` manage transitions between `ListingStage`s.
+-   **Media Handling**:
+    -   Uses `CameraSection` component for capturing media.
+    -   `takePicture()`, `startRecording()`, `stopRecording()`: Camera operations.
+    -   `pickImagesFromLibrary()`: Selects media from the device library.
+    -   `handleSetCover()`, `handleRemoveMedia()`: Manage the list of captured media.
+    -   `uploadImagesToSupabase()`: Uploads media to Supabase storage and returns URLs.
+-   **API Interactions**:
+    -   `triggerImageAnalysis()`: Calls the `/products/analyze` backend endpoint.
+    -   `triggerDetailsGeneration()`: Calls the `/products/generate-details` backend endpoint.
+    -   `handleSaveDraft()`: Saves the current listing as a draft (likely calls `/products/publish` with appropriate intent).
+    -   `handlePublishAction()`: Publishes the product to selected platforms (calls `/products/publish` or platform-specific publish endpoints like `/products/:id/publish/shopify`).
+    -   `fetchShopifyLocations()`: Fetches Shopify locations if Shopify is a selected platform.
+-   **Form Management (`FORM_REVIEW` stage)**:
+    -   `handleFormUpdate()`: Updates the `formData` state when the user edits fields.
+    -   Dynamic rendering of form fields based on selected platforms and their specific requirements.
+    -   Handles Shopify-specific logic like location selection and quantity input (`updateLocationQuantity`, `handleLocationToggle`).
+-   **Modal Handling**: Functions like `renderAddPlatformModal`, `renderPublishModal` control the display of various modals for user interaction.
+-   **Rendering Logic**: `renderCurrentStage()` dynamically renders the UI corresponding to the active `ListingStage`. Each stage has its own render function (e.g., `renderPlatformSelection()`, `renderImageInput()`, `renderVisualMatch()`, `renderFormReview()`).
+
+## User Interactions
+
+-   Selecting platforms.
+-   Capturing or picking images/videos.
+-   Selecting a visual match from AI suggestions or proceeding without one.
+-   Editing product details in a multi-platform form.
+-   Choosing to save as draft or publish live.
+-   For Shopify: Selecting locations and setting inventory quantities.
+
+## Error Handling & Loading States
+
+The screen extensively uses loading state variables (e.g., `isAnalyzing`, `isGenerating`, `isPublishing`) to provide feedback to the user during asynchronous operations. Error handling for API calls is implemented to inform the user of any issues.
+
+## Usage Example
+
+`AddListingScreen` is typically presented as a screen within a stack navigator. It can be navigated to directly or with `initialData` parameters if editing an existing listing (e.g., from `PastScansScreen`).
+
+```tsx
+// Example: Integrating AddListingScreen into an AppStack navigator
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AddListingScreen from '../screens/AddListingScreen';
+import PastScansScreen from '../screens/PastScansScreen'; // Example screen that might navigate to AddListing
+
+export type AppStackParamList = {
+  // ... other screen definitions
+  AddListing: { 
+    initialData?: {
+      title: string;
+      description: string;
+      price: number;
+      sku: string;
+      barcode: string;
+      images: string[];
+      platformDetails: any; // Or a more specific type
+      status: 'draft' | 'active' | 'archived';
+      initialStage?: string; // Corresponds to ListingStage enum values
+      productId?: string;
+      variantId?: string;
+      uploadedImageUrls?: string[];
+    };
+  };
+  PastScans: undefined;
+};
+
+const Stack = createNativeStackNavigator<AppStackParamList>();
+
+const AppStack = () => {
+  return (
+    <Stack.Navigator>
+      {/* ... other screens in the stack ... */}
+      <Stack.Screen 
+        name="AddListing"
+        component={AddListingScreen}
+        options={{ title: 'Add New Listing' }} 
+      />
+      <Stack.Screen 
+        name="PastScans" 
+        component={PastScansScreen} 
+        options={{ title: 'Past Scans' }} 
+      />
+      {/* ... */}
+    </Stack.Navigator>
+  );
+};
+
+// To navigate to AddListingScreen:
+// navigation.navigate('AddListing'); // For a new listing
+// navigation.navigate('AddListing', { initialData: myExistingListingData }); // For editing
+```
+
+This screen is a complex orchestrator of UI, local state, and backend API calls to provide a comprehensive product listing creation experience. 

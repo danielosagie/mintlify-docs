@@ -1,0 +1,64 @@
+---
+title: 'Component: TabBar'
+description: 'Documentation for the custom TabBar component used with React Navigation.'
+icon: 'layout-bottom-panel-2'
+---
+
+The `TabBar` component is a custom implementation for the bottom tab navigator in the sssync mobile application. It provides a tailored look and feel for the main navigation tabs, often integrating custom icons and styles.
+
+Located at `sssync_mobile_test/src/components/TabBar.tsx`.
+
+## Purpose
+
+-   To replace the default tab bar provided by `react-navigation/bottom-tabs` with a custom-styled version that matches the app's design language.
+-   To have more control over the appearance and behavior of tab items, including icons, labels, and active/inactive states.
+
+## Props (Passed by React Navigation)
+
+This component is typically used as the `tabBar` prop of a `Tab.Navigator` from `@react-navigation/bottom-tabs`. As such, it receives specific props from React Navigation:
+
+-   **`state` (Required)**: The navigation state of the tab navigator. Key properties include:
+    -   `state.routes`: An array of route objects for each tab.
+    -   `state.index`: The index of the currently active tab route in the `routes` array.
+-   **`descriptors` (Required)**: An object containing options for each tab route. `descriptors[route.key].options` can be used to access tab-specific options like `tabBarLabel`, `tabBarIcon`, etc., if they were set during navigator configuration.
+-   **`navigation` (Required)**: The navigation object for the tab navigator, allowing tabs to dispatch navigation actions (e.g., `navigation.navigate(route.name)`).
+
+## Key Features & Logic
+
+-   **Iterate Through Routes**: Maps over `state.routes` to render a touchable tab item for each route/screen in the tab navigator.
+-   **Determine Active Tab**: Checks if a tab is currently active using `state.index` and the route's index or key. Active tabs are usually styled differently (e.g., different icon color, background highlight).
+-   **Icon Rendering (`getTabIcon(routeName)`)**:
+    -   A helper function that takes a `routeName` (e.g., "Dashboard", "Inventory") and returns the appropriate icon component or icon name for that tab.
+    -   Icons might change based on whether the tab is active or inactive.
+-   **Handle Tab Press (`onPress`)**:
+    -   When a tab item is pressed, it should navigate to that tab's screen.
+    -   It typically calls `navigation.navigate(route.name)` or `navigation.emit` to handle the press event, ensuring that the default tab navigation behavior occurs (like switching to the tab or popping to the top of its stack if already active).
+    -   It also handles the case where a tab that is already active is pressed (often, this does nothing or pops to the initial screen of that tab's stack).
+-   **Custom Styling**: Applies custom styles for the tab bar container, individual tab items, icons, and labels, differentiating between active and inactive states.
+
+## Usage Example
+
+This component is not typically used directly by instantiating `<TabBar />` in a screen. Instead, it's passed to the `tabBar` prop of a `Tab.Navigator`:
+
+```tsx
+// In AppNavigator.tsx or a similar navigation setup file
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import TabBar from '../components/TabBar'; // Path to your custom TabBar
+import DashboardScreen from '../screens/DashboardScreen';
+import InventoryScreen from '../screens/InventoryScreen';
+// ... other screens
+
+const Tab = createBottomTabNavigator();
+
+const MyTabNavigator = () => {
+  return (
+    <Tab.Navigator tabBar={props => <TabBar {...props} />}>
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      {/* ... other tab screens ... */}
+    </Tab.Navigator>
+  );
+};
+```
+
+By creating a custom `TabBar`, the application achieves a unique and consistent navigation experience that aligns with its branding and design requirements, offering more flexibility than the default tab bar configurations. 

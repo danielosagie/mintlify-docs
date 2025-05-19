@@ -1,0 +1,48 @@
+---
+title: 'Component: AnimatedGradientBackground'
+description: 'Documentation for the AnimatedGradientBackground reusable UI component.'
+icon: 'image-ਲਾਵਾ'
+---
+
+The `AnimatedGradientBackground` component is likely a reusable UI component designed to provide an aesthetically pleasing animated gradient background for screens or parts of the UI in the sssync mobile application.
+
+Located at `sssync_mobile_test/src/components/AnimatedGradientBackground.tsx`.
+
+## Purpose
+
+-   To enhance the visual appeal of the application by displaying a dynamic, shifting gradient instead of a static background color or image.
+-   To provide a consistent way to apply animated backgrounds across different parts of the app.
+
+## Props
+
+Since the detailed outline is not available, common props for such a component might include:
+
+-   `colors`: An array of color strings defining the gradient stops.
+-   `speed` or `duration`: A number controlling the speed of the animation.
+-   `angle` or `direction`: To control the orientation or flow of the gradient animation.
+-   `style`: Standard React Native style prop to allow for additional custom styling (e.g., `flex: 1`, `width`, `height`).
+-   `children`: To allow other components to be rendered on top of the background.
+
+## Implementation Notes
+
+-   It likely uses libraries such as `expo-linear-gradient` for rendering the gradient and `react-native-reanimated` for handling the animation logic to smoothly transition between gradient states or properties.
+-   The animation could involve changing colors, color positions, or the gradient's angle over time.
+
+## Usage Example
+
+```tsx
+import AnimatedGradientBackground from '../components/AnimatedGradientBackground';
+
+const MyScreen = () => {
+  return (
+    <AnimatedGradientBackground
+      colors={['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF']}
+      style={{ flex: 1 }}
+    >
+      {/* ... other screen content ... */}
+    </AnimatedGradientBackground>
+  );
+};
+```
+
+This component contributes to the overall look and feel of the application by adding a modern and dynamic visual element. 

@@ -1,0 +1,66 @@
+---
+title: 'Frontend: Architecture Overview'
+description: 'A high-level overview of the sssync React Native mobile application architecture.'
+icon: 'project-diagram'
+---
+
+This document provides a high-level overview of the sssync mobile application's frontend architecture. The application is built with React Native and Expo, targeting iOS and Android platforms.
+
+## Core Technologies & Libraries
+
+-   **React Native**: The fundamental framework for building native mobile applications using JavaScript and React.
+-   **Expo**: A platform and set of tools built around React Native to simplify development, building, and deployment. It provides access to native device features through its SDK.
+-   **TypeScript**: Used for static typing, enhancing code quality, and improving developer experience.
+-   **React Navigation**: The primary library for handling navigation and screen transitions within the app (see `src/navigation/AppNavigator.tsx`).
+-   **Supabase Client (`@supabase/supabase-js`)**: Used for interacting with the Supabase backend for authentication, database operations, and real-time subscriptions.
+-   **UI Component Libraries**: Potentially `@rneui/themed` (React Native Elements), `react-native-paper`, or custom-built components are used for UI elements. Specifics can be found by inspecting `package.json` and component usage within screens.
+-   **State Management**: Primarily relies on React Context API (e.g., `AuthContext.tsx`, `ThemeContext.tsx`) for global state and React component state (`useState`, `useReducer`) for local UI state.
+
+## Directory Structure Highlights
+
+The `sssync_mobile_test/src/` directory is the main container for the application's source code. Key subdirectories include:
+
+-   **`screens/`**: Contains all the major screens or views of the application. Each screen component is typically responsible for fetching its data, handling user interactions, and displaying information related to a specific feature or part of the user flow (e.g., `DashboardScreen.tsx`, `AddListingScreen.tsx`, `ProfileScreen.tsx`).
+-   **`components/`**: Houses reusable UI components that are used across multiple screens (e.g., `Button.tsx`, `Card.tsx`, `PlaceholderImage.tsx`). This promotes consistency and DRY (Don't Repeat Yourself) principles.
+-   **`navigation/`**: Defines the navigation structure of the app. `AppNavigator.tsx` is the central piece, setting up stack navigators, tab navigators, and managing the overall screen flow, including authentication-related routing.
+-   **`contexts/` (or `context/`)**: Contains React Context providers and consumers for managing global application state. Examples include `AuthContext.tsx` for authentication data and `ThemeContext.tsx` for theming.
+-   **`assets/`**: Stores static assets like images, fonts, etc.
+-   **`hooks/`**: (If present) Custom React Hooks to encapsulate reusable logic.
+-   **`services/` or `api/`**: (If present) Modules responsible for making API calls to the backend, abstracting data fetching logic from screens.
+-   **`utils/`**: Utility functions that can be used throughout the application.
+-   **`styles/` or `theme/`**: Global styles, theme definitions, color palettes.
+
+## Navigation
+
+Navigation is managed by `react-navigation`. The `AppNavigator.tsx` typically sets up:
+
+-   **Stack Navigators**: For flows where screens are pushed onto a stack and can be popped off (e.g., navigating from a list to a detail view).
+-   **Bottom Tab Navigator**: For primary sections of the app accessible from a bottom bar (e.g., Dashboard, Inventory, Marketplace, Profile).
+-   **Conditional Routing**: Logic to switch between authentication flows (e.g., Login/Signup screens) and the main application content based on user authentication status.
+
+## State Management
+
+-   **Global State**: Managed using React Context API. Key contexts observed:
+    -   `AuthContext`: Likely stores user session information, authentication status, and provides functions for login/logout.
+    -   `ThemeContext`: Manages the application's theme (light/dark mode) and provides theme-related values to components.
+-   **Local/Screen State**: Standard React state (`useState`, `useReducer`) is used within individual components and screens to manage UI-specific state, form data, loading indicators, etc.
+-   **Navigation State**: `react-navigation` manages its own internal state for the navigation stacks and routes.
+
+## API Interaction
+
+-   Screens or dedicated service modules use the `@supabase/supabase-js` client to interact with the Supabase backend.
+-   This involves fetching data, posting data (e.g., creating new listings), and handling user authentication.
+-   API calls are typically asynchronous (`async/await`) and may involve error handling and loading state management within the UI.
+
+## Data Flow (Typical Screen)
+
+1.  **Navigation**: User navigates to a screen.
+2.  **Mount**: The screen component mounts.
+3.  **Data Fetching (Optional)**: The screen might use `useEffect` to fetch necessary data from the backend API upon mounting or based on certain dependencies.
+4.  **State Update**: Fetched data is stored in the component's state or global context, triggering a re-render.
+5.  **Render**: The screen renders its UI based on the current state and props, displaying data and interactive elements.
+6.  **User Interaction**: User interacts with UI elements (buttons, inputs).
+7.  **Event Handling**: Event handlers update local state, call API functions, or navigate to other screens.
+8.  **Re-render**: State changes cause the component (and potentially children) to re-render.
+
+This architecture aims to create a modular, maintainable, and scalable mobile application. As you delve into specific parts of the codebase, refer to the detailed documentation for individual screens and components (to be added). 

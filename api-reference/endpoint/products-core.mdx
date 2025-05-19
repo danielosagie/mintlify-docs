@@ -1,0 +1,283 @@
+---
+title: 'Product Core Operations'
+openapiPath: '../openapi.json'
+---
+
+This section covers core operations for managing products and their variants within the sssync system, including publishing to various platforms, direct creation, manual synchronization, and SKU uniqueness checks.
+
+All endpoints in this section require Bearer Token authentication. Common error responses include:
+- `400 Bad Request`: Invalid request payload or parameters.
+- `401 Unauthorized`: Authentication token is missing, invalid, or expired.
+- `403 Forbidden`: The authenticated user does not have permission to perform this action (e.g., feature not enabled).
+- `404 Not Found`: The requested resource (e.g., product, connection) does not exist.
+- `429 Too Many Requests`: Rate limit exceeded.
+- `500 Internal Server Error`: An unexpected error occurred on the server.
+
+## Save or Publish Product Listing
+
+This versatile endpoint allows you to either save a product listing as a draft within sssync or publish it to one or more selected e-commerce platforms.
+
+**Method & Path:** `POST /products/publish`
+
+**Purpose:**
+The behavior is determined by the `publishIntent` field in the request body (`PublishProductDto`).
+- If `publishIntent` is `'SAVE_SSSYNC_DRAFT'`, the product data (including details, variants, media) is saved or updated within the sssync canonical product store. No external platforms are contacted.
+- If `publishIntent` is `'PUBLISH_PLATFORM_DRAFT'`, the product is published as a draft to the selected platforms.
+- If `publishIntent` is `'PUBLISH_PLATFORM_LIVE'`, the product is published as a live, active listing on the selected platforms.
+
+When publishing, this endpoint orchestrates the update of the canonical product data in sssync and then triggers the appropriate platform-specific publishing actions.
+
+**Request:**
+
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Body:** The request body should conform to the `PublishProductDto` schema defined in `openapi.json`. Key fields include:
+    - `productId` (string, UUID, required): ID of an existing sssync product.
+    - `variantId` (string, UUID, required): ID of the primary sssync variant being saved/published.
+    - `publishIntent` (enum, required): `'SAVE_SSSYNC_DRAFT'`, `'PUBLISH_PLATFORM_DRAFT'`, or `'PUBLISH_PLATFORM_LIVE'`.
+    - `platformDetails`: An object containing `canonical` (core product details like title, SKU, price, description) and optionally platform-specific overrides under keys like `shopify`, `ebay`.
+    - `media`: Array of image URIs and the `coverImageIndex`.
+    - `selectedPlatformsToPublish` (optional): Array of platform connection IDs (as strings) to publish to.
+
+**Example Request (Publish Live to Shopify):**
+
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products/publish" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "productId": "prod-uuid-from-sssync-123",
+       "variantId": "var-uuid-from-sssync-456",
+       "publishIntent": "PUBLISH_PLATFORM_LIVE",
+       "platformDetails": {
+         "canonical": {
+           "title": "Awesome T-Shirt (Canonical)",
+           "sku": "TSHIRT-BLK-L-CANONICAL",
+           "price": 25.99,
+           "description": "High-quality black t-shirt, size large. Comfortable cotton.",
+           "compareAtPrice": 29.99,
+           "barcode": "1234567890123",
+           "weight": 0.2,
+           "weightUnit": "kg",
+           "tags": ["t-shirt", "apparel", "cotton"],
+           "vendor": "MyBrand",
+           "productType": "Clothing",
+           "status": "active"
+         },
+         "shopify": { 
+           "title": "Awesome T-Shirt (Shopify Special)", 
+           "tags": ["t-shirt", "shopify-exclusive"],
+           "productType": "Tops",
+           "vendor": "MyBrand Online"
+         }
+       },
+       "media": {
+         "imageUris": [
+           "https://example.com/image-main.jpg", 
+           "https://example.com/image-alt1.jpg"
+         ],
+         "coverImageIndex": 0
+       },
+       "selectedPlatformsToPublish": ["shopify-connection-uuid-789"]
+     }'
+```
+
+**Response:**
+- `202 Accepted`: The request has been successfully received and queued for processing. Due to the potentially long-running nature of platform interactions, the actual save or publish operation occurs asynchronously.
+  The response body will contain a message:
+
+  **Example Success Response Body (202 Accepted):**
+  ```json
+  {
+    "message": "PUBLISH_PLATFORM_LIVE request received and processing started."
+  }
+  ```
+  *(The message will reflect the actual `publishIntent`)*.
+
+- For error responses (e.g., 400, 401), refer to `#/components/responses/BadRequest` and `#/components/responses/Unauthorized` in `openapi.json`.
+
+Refer to `openapi.json` for detailed schema definitions of `PublishProductDto`.
+
+```mdx
+---
+title: 'Save or Publish Product Listing'
+openapi: 'POST /products/publish'
+---
+```
+
+## Create Product with Variant
+
+This endpoint provides a direct method to create a new product along with its initial variant in the sssync system.
+
+**Method & Path:** `POST /products`
+
+**Purpose:**
+Unlike the AI-assisted flow (`/products/analyze` followed by `/products/generate-details`), this endpoint is for scenarios where product data is already known and needs to be entered directly into sssync. It creates both the parent product record and at least one child variant record.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Body:** The request body should contain:
+    - `userId` (string, UUID, required): The ID of the user creating the product. This should match the ID of the authenticated user.
+    - `variantData` (object, required): An object conforming to the `ProductVariantCreationDto` schema, containing details for the initial variant (e.g., SKU, price, title, description).
+
+**Example Request:**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "userId": "user-uuid-abc-123",
+       "variantData": {
+         "Sku": "NEW-GADGET-RED-V1",
+         "Price": 199.99,
+         "CompareAtPrice": 249.99,
+         "Title": "Brand New Red Gadget - Model V1",
+         "Description": "The latest and greatest red gadget, perfect for tech enthusiasts.",
+         "Barcode": "9876543210987",
+         "Weight": 0.5,
+         "WeightUnit": "kg",
+         "StockQuantity": 50 
+       }
+     }'
+```
+*(The above `variantData.StockQuantity` is illustrative; actual DTO might not include it directly, as inventory is usually managed separately or via `PublishProductDto` initial stock.)*
+
+**Response:**
+- `201 Created`: The product and its initial variant were successfully created.
+  The response body will contain the created product and variant details:
+
+  **Example Success Response Body (201 Created):**
+  ```json
+  {
+    "product": {
+      "Id": "prod-uuid-new-789",
+      "UserId": "user-uuid-abc-123",
+      "Title": "Brand New Red Gadget - Model V1", // Title often comes from variant data on creation
+      "Description": "The latest and greatest red gadget, perfect for tech enthusiasts.",
+      "IsArchived": false
+    },
+    "variant": {
+      "Id": "var-uuid-new-012",
+      "ProductId": "prod-uuid-new-789",
+      "Sku": "NEW-GADGET-RED-V1",
+      "Title": "Brand New Red Gadget - Model V1",
+      "Price": 199.99,
+      "CompareAtPrice": 249.99,
+      "Barcode": "9876543210987",
+      "Weight": 0.5,
+      "WeightUnit": "kg"
+    },
+    "analysis": null
+  }
+  ```
+  *(The `analysis` field might be present and null, or omitted if not applicable).* 
+
+- For error responses, refer to `#/components/responses/BadRequest` and `#/components/responses/Unauthorized` in `openapi.json`.
+
+Refer to `openapi.json` for `ProductVariantCreationDto`, `SimpleProduct`, and `SimpleProductVariant` schema definitions.
+
+```mdx
+---
+title: 'Create Product with Variant'
+openapi: 'POST /products'
+---
+```
+
+## Queue Product Sync
+
+Manually triggers a synchronization job for a specific product.
+
+**Method & Path:** `POST /products/sync`
+
+**Purpose:**
+This endpoint is useful if there's a need to force a synchronization for a particular product outside of automated schedules or webhook-triggered events. The synchronization process typically involves:
+1. Pulling the latest data for this product from all connected platforms where it's mapped.
+2. Updating the sssync canonical representation of the product.
+3. Pushing the updated canonical data to other connected and mapped platforms (respecting sync rules).
+
+The endpoint queues the job, and the actual synchronization is handled by a background worker.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Body:** The request body must contain the `productId` of the sssync product to be synchronized.
+
+**Example Request:**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products/sync" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "productId": "prod-uuid-to-sync-555"
+     }'
+```
+
+**Response:**
+- `202 Accepted`: The product synchronization job has been successfully queued.
+  The response body will contain a message and potentially a `jobId`:
+
+  **Example Success Response Body (202 Accepted):**
+  ```json
+  {
+    "message": "Product synchronization job queued successfully.",
+    "jobId": "sync-job-uuid-abcdef"
+  }
+  ```
+- `404 Not Found`: If the specified `productId` does not exist. Refer to `#/components/schemas/Error` in `openapi.json` (adapted for 404).
+
+Refer to `openapi.json` for details on the request and response schemas.
+
+```mdx
+---
+title: 'Queue Product Sync'
+openapi: 'POST /products/sync'
+---
+```
+
+## Check SKU Uniqueness
+
+Verifies if a given Stock Keeping Unit (SKU) is already in use by any product or variant belonging to the authenticated user.
+
+**Method & Path:** `GET /products/sku/check-uniqueness`
+
+**Purpose:**
+This is a utility endpoint to help prevent SKU conflicts before creating or updating products. Maintaining unique SKUs is crucial for inventory management and order processing across different platforms.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Query Parameter**: `sku` (string, required): The SKU to check for uniqueness.
+
+**Example Request:**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/products/sku/check-uniqueness?sku=TSHIRT-RED-XL" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: The check was performed successfully.
+  The response body will indicate if the SKU is unique:
+
+  **Example Success Response Body (200 OK - SKU is unique):**
+  ```json
+  {
+    "isUnique": true,
+    "message": "SKU is available."
+  }
+  ```
+  **Example Success Response Body (200 OK - SKU is not unique):**
+  ```json
+  {
+    "isUnique": false,
+    "message": "SKU TSHIRT-RED-XL is already in use by product 'Classic Red T-Shirt' (ID: prod-uuid-777)."
+  }
+  ```
+  *(The level of detail in the `message` for non-unique SKUs may vary).* 
+
+- For error responses, refer to `#/components/responses/BadRequest` and `#/components/responses/Unauthorized` in `openapi.json`.
+
+Refer to `openapi.json` for the `SkuCheckDto` (implicitly used for the query parameter) and response schema details.
+
+```mdx
+---
+title: 'Check SKU Uniqueness'
+openapi: 'GET /products/sku/check-uniqueness'
+---
+``` 

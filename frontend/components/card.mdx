@@ -1,0 +1,52 @@
+---
+title: 'Component: Card'
+description: 'Documentation for the reusable Card component, used for displaying content in a styled container.'
+icon: 'rectangle'
+---
+
+The `Card` component is a reusable UI container used throughout the sssync mobile application to group and display related content with a consistent, card-like visual style.
+
+Located at `sssync_mobile_test/src/components/Card.tsx`.
+
+## Purpose
+
+-   To provide a visually distinct container for sections of content or individual items (e.g., list items, summary information).
+-   To ensure consistent styling (padding, margins, borders, shadows, background color) for card elements across the app.
+-   To simplify the layout by providing a pre-styled wrapper.
+
+## Props
+
+-   **`children: React.ReactNode` (Required)**: The content to be rendered inside the card. This can be any valid React Native elements (text, images, views, other components).
+-   **`style?: ViewStyle` (Optional)**: Allows for custom styles to be applied to the card's main container `View`, overriding or extending the default card styles.
+
+## Key Features & Logic
+
+-   **Styling**: 
+    -   Applies base styles that define the card's appearance (e.g., background color from the theme, border radius, padding, margin, shadow or elevation for a raised effect).
+    -   These base styles are likely sourced from a global theme object or defined directly within the component.
+-   **Content Projection**: Renders any `children` passed to it within the styled container.
+
+## Usage Example
+
+```tsx
+import Card from '../components/Card';
+import { Text, View } from 'react-native';
+
+const MyScreen = () => {
+  return (
+    <View style={{ padding: 10 }}>
+      <Card style={{ marginBottom: 10 }}>
+        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Section Title</Text>
+        <Text>This is some content inside a card.</Text>
+      </Card>
+
+      <Card>
+        <Text>Another card with different content.</Text>
+        {/* You can nest other components too */}
+      </Card>
+    </View>
+  );
+};
+```
+
+This component is a fundamental building block for creating structured and visually appealing layouts in the application. 

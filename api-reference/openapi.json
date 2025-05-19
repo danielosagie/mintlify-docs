@@ -128,27 +128,627 @@
           }
         }
       }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
+    },
+    "/products/publish": {
       "post": {
-        "description": "Information about a new plant added to the store",
+        "summary": "Save or Publish Product Listing",
+        "description": "Saves a product listing as a draft within the sssync system, or publishes it to specified platforms (as a draft or live). This endpoint orchestrates the update of canonical product data and then triggers platform-specific publishing actions if requested.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
-          "description": "Plant added to the store",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PublishProductDto" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted for processing. The operation (save or publish) has been queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        },
+        "tags": ["Products Core"]
+      }
+    },
+    "/products": {
+      "post": {
+        "summary": "Create Product with Variant",
+        "description": "Creates a new product along with its initial variant directly in the sssync system. This is a more direct way to create product data without AI assistance.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "type": "object",
+                "required": ["userId", "variantData"],
+                "properties": {
+                  "userId": { 
+                    "type": "string", 
+                    "format": "uuid", 
+                    "description": "The ID of the user creating the product. Should match authenticated user."
+                  },
+                  "variantData": { 
+                    "$ref": "#/components/schemas/ProductVariantCreationDto" 
+                  }
+                }
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+          "201": {
+            "description": "Product and variant created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "product": { "$ref": "#/components/schemas/SimpleProduct" },
+                    "variant": { "$ref": "#/components/schemas/SimpleProductVariant" },
+                    "analysis": { "$ref": "#/components/schemas/SimpleAiGeneratedContent", "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        },
+        "tags": ["Products Core"]
+      }
+    },
+    "/products/{id}/publish/shopify": {
+      "post": {
+        "summary": "Publish Product to Shopify",
+        "description": "Publishes a specific product (and its variants) from the sssync system to a connected Shopify store. This endpoint allows specifying inventory quantities for different Shopify locations.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the sssync product to publish.",
+            "schema": { "type": "string", "format": "uuid" }
           }
-        }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["platformConnectionId", "locations"],
+                "properties": {
+                  "platformConnectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The ID of the Shopify platform connection to use."
+                  },
+                  "locations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["locationId", "quantity"],
+                      "properties": {
+                        "locationId": { 
+                          "type": "string", 
+                          "description": "The Shopify location ID (e.g., gid://shopify/Location/12345)."
+                        },
+                        "quantity": { "type": "integer", "minimum": 0, "description": "Inventory quantity for this location." }
+                      }
+                    },
+                    "description": "Inventory levels for Shopify locations."
+                  },
+                  "options": {
+                    "type": "object",
+                    "properties": {
+                      "status": { "type": "string", "enum": ["ACTIVE", "DRAFT", "ARCHIVED"], "description": "Status of the product on Shopify." },
+                      "vendor": { "type": "string", "description": "Vendor for the product on Shopify." },
+                      "productType": { "type": "string", "description": "Product type for the product on Shopify." },
+                      "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags for the product on Shopify." }
+                    },
+                    "nullable": true,
+                    "description": "Optional Shopify-specific publishing options."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { 
+            "description": "Product published to Shopify successfully (or request queued). Actual response might vary based on implementation (sync vs async product creation on Shopify).",
+            "content": {
+              "application/json": {
+                "schema": { 
+                  "type": "object",
+                  "properties": {
+                     "message": {"type": "string"},
+                     "productId": {"type": "string", "format": "uuid", "description": "sssync Product ID"},
+                     "shopifyProductId": {"type": "string", "description": "Shopify Product GID if available immediately"} 
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Product or Shopify connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}} 
+        },
+        "tags": ["Products Shopify"]
+      }
+    },
+    "/products/shopify/locations": {
+      "get": {
+        "summary": "Get Shopify Locations",
+        "description": "Retrieves a list of all active locations for a given Shopify connection.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "platformConnectionId",
+            "in": "query",
+            "required": true,
+            "description": "The ID of the Shopify platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of Shopify locations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locations": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ShopifyLocationNode" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Shopify connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}}
+        },
+        "tags": ["Products Shopify"]
+      }
+    },
+    "/products/shopify/inventory": {
+      "get": {
+        "summary": "Get Shopify Inventory Levels",
+        "description": "Retrieves inventory levels for products/variants from a connected Shopify store. Can optionally trigger a fresh sync from Shopify before returning data.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "platformConnectionId",
+            "in": "query",
+            "required": true,
+            "description": "The ID of the Shopify platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "description": "Set to 'true' to force a refresh from Shopify before fetching. Defaults to 'false'.",
+            "schema": { "type": "string", "enum": ["true", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shopify inventory levels.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ShopifyInventoryResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Shopify connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}}
+        },
+        "tags": ["Products Shopify"]
+      }
+    },
+    "/products/shopify/locations-with-products": {
+      "get": {
+        "summary": "Get Shopify Locations with Product Inventory",
+        "description": "Retrieves a list of Shopify locations, and for each location, lists the products/variants with their inventory quantities at that location. Can optionally trigger a fresh sync.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "platformConnectionId",
+            "in": "query",
+            "required": true,
+            "description": "The ID of the Shopify platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "sync",
+            "in": "query",
+            "required": false,
+            "description": "Set to 'true' to force a refresh from Shopify. Defaults to 'false'.",
+            "schema": { "type": "string", "enum": ["true", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of Shopify locations with associated product inventory data.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ShopifyLocationsWithProductsResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Shopify connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}}
+        },
+        "tags": ["Products Shopify"]
+      }
+    },
+    "/products/sync": {
+      "post": {
+        "summary": "Queue Product Sync",
+        "description": "Queues a synchronization job for a specific product. The actual sync logic will be handled asynchronously by a background worker.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["productId"],
+                "properties": {
+                  "productId": { 
+                    "type": "string", 
+                    "format": "uuid", 
+                    "description": "The ID of the sssync product to queue for synchronization."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Product synchronization job queued successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "jobId": { "type": "string", "description": "Identifier for the queued job, if available." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Product not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}} 
+        },
+        "tags": ["Products Core"]
+      }
+    },
+    "/products/sku/check-uniqueness": {
+      "get": {
+        "summary": "Check SKU Uniqueness",
+        "description": "Checks if a given SKU is unique for the authenticated user across all their products and variants.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "query",
+            "required": true,
+            "description": "The SKU to check for uniqueness.",
+            "schema": { "$ref": "#/components/schemas/SkuCheckDto/properties/sku" } 
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result of the SKU uniqueness check.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["isUnique"],
+                  "properties": {
+                    "isUnique": { "type": "boolean" },
+                    "message": { "type": "string", "nullable": true, "description": "Optional message, e.g., if SKU is not unique, indicating where it is used." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        },
+        "tags": ["Products Core"]
+      }
+    },
+    "/sync/connections/{connectionId}/start-scan": {
+      "post": {
+        "summary": "Start Initial Platform Scan",
+        "description": "Queues a job to start an initial scan of a newly connected platform (e.g., Shopify, Square). This scan fetches basic information like product counts, variant counts, and location counts.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection to scan.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Scan job successfully queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "jobId": { "type": "string", "description": "ID of the queued scan job." } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/sync/connections/{connectionId}/scan-summary": {
+      "get": {
+        "summary": "Get Scan Summary",
+        "description": "Retrieves the summary of a completed initial platform scan, including counts of products, variants, and locations.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection for which to get the scan summary.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scan summary retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InitialScanResult" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection or scan summary not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/sync/connections/{connectionId}/mapping-suggestions": {
+      "get": {
+        "summary": "Get Mapping Suggestions",
+        "description": "After an initial scan, this endpoint provides suggestions for mapping products/variants from the external platform to existing sssync canonical products/variants, or suggests creating new ones. Matches are typically based on SKU or barcode.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mapping suggestions retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MappingSuggestion" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection not found or scan not completed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/sync/connections/{connectionId}/confirm-mappings": {
+      "post": {
+        "summary": "Confirm Product Mappings",
+        "description": "Allows the user to confirm or adjust the suggested product mappings. The user specifies whether to link a platform product to an existing sssync variant, create a new sssync variant, or ignore the platform product.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmMappingsDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mappings confirmed and saved successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "success": { "type": "boolean" } } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/sync/connections/{connectionId}/sync-preview": {
+      "get": {
+        "summary": "Get Sync Preview",
+        "description": "After mappings are confirmed, this endpoint provides a preview of the actions that will be taken during the initial synchronization (e.g., products to be created in sssync, links to be established).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync preview generated successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SyncPreview" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection not found or mappings not confirmed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/sync/connections/{connectionId}/activate-sync": {
+      "post": {
+        "summary": "Activate Initial Sync",
+        "description": "Queues a job to perform the initial synchronization for a platform connection, based on the confirmed mappings. This will create/link products in sssync and potentially perform other setup actions.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the platform connection to activate sync for.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Initial sync job successfully queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "jobId": { "type": "string", "description": "ID of the queued sync job." } }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "description": "Platform connection not found or prerequisite steps (scan, mapping) not completed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Sync Engine"]
+      }
+    },
+    "/webhooks/{platform}": {
+      "post": {
+        "summary": "Receive Platform Webhook",
+        "description": "A generic endpoint to receive incoming webhooks from various connected platforms (e.g., Shopify, Square). The specific platform is indicated by the `platform` path parameter. Request body and headers will vary based on the source platform. Signature verification is performed where applicable.",
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "description": "Identifier for the source platform (e.g., 'shopify', 'square').",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "description": "Webhook payload from the platform. Structure varies by platform.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true 
+              }
+            }
+            // Potentially add other content types if platforms send XML, form-data etc.
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook received and accepted for processing.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "received": { "type": "boolean" } } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }, // e.g. if raw body missing for sig verification
+          "401": { "description": "Unauthorized due to invalid signature or missing/invalid platform identifier.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" }}}} 
+        },
+        "tags": ["Webhooks"]
+      }
+    },
+    "/users/{userId}/subscription": {
+      "patch": {
+        "summary": "Update User Subscription Tier",
+        "description": "Updates the subscription tier for a specified user. This endpoint should be protected and accessible only by administrators or through appropriate authorization logic.",
+        "security": [{ "bearerAuth": [] }], // Assuming Bearer token for admin/authorized user
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The UUID of the user whose subscription is to be updated.",
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateSubscriptionDto" }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "User subscription updated successfully."
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "description": "Forbidden. User does not have permission to perform this action.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "User not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        },
+        "tags": ["Users"]
       }
     }
   },
@@ -205,6 +805,235 @@
             "type": "string"
           }
         }
+      },
+      "ShopifyLocationNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Shopify Location GID (e.g., gid://shopify/Location/12345)." },
+          "name": { "type": "string", "description": "Name of the location." },
+          "isActive": { "type": "boolean", "description": "Whether the location is active." }
+        },
+        "description": "Represents a Shopify Location."
+      },
+      "ShopifyInventoryResponse": {
+        "type": "object",
+        "properties": {
+          "inventory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": { "type": "string", "format": "uuid", "description": "sssync ProductVariant ID." },
+                "sku": { "type": "string", "description": "SKU of the variant." },
+                "title": { "type": "string", "description": "Title of the variant." },
+                "locations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "locationId": { "type": "string", "description": "Shopify Location GID." },
+                      "locationName": { "type": "string", "description": "Name of the Shopify location." },
+                      "quantity": { "type": "integer", "description": "Inventory quantity at this location." },
+                      "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp for this inventory level." }
+                    }
+                  }
+                },
+                "productId": { "type": "string", "format": "uuid", "description": "sssync Product ID." },
+                "platformVariantId": { "type": "string", "description": "Shopify Variant GID." },
+                "platformProductId": { "type": "string", "description": "Shopify Product GID." }
+              }
+            }
+          },
+          "lastSyncedAt": { "type": "string", "format": "date-time", "nullable": true, "description": "Timestamp of the last successful sync with Shopify for this data." }
+        },
+        "description": "Response structure for Shopify inventory levels."
+      },
+      "ShopifyLocationProduct": {
+        "type": "object",
+        "properties": {
+            "variantId": { "type": "string", "format": "uuid" },
+            "sku": { "type": "string" },
+            "title": { "type": "string" },
+            "quantity": { "type": "integer" },
+            "updatedAt": { "type": "string", "format": "date-time" },
+            "productId": { "type": "string", "format": "uuid" },
+            "platformVariantId": { "type": "string" },
+            "platformProductId": { "type": "string" }
+        },
+        "description": "Product inventory details specific to a Shopify location."
+      },
+      "ShopifyLocationsWithProductsResponse": {
+        "type": "object",
+        "properties": {
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "description": "Shopify Location GID." },
+                "name": { "type": "string", "description": "Name of the location." },
+                "isActive": { "type": "boolean", "description": "Whether the location is active." },
+                "products": { 
+                  "type": "array", 
+                  "items": { "$ref": "#/components/schemas/ShopifyLocationProduct" } 
+                }
+              }
+            }
+          },
+          "lastSyncedAt": { "type": "string", "format": "date-time", "nullable": true, "description": "Timestamp of the last successful sync with Shopify for this data." }
+        },
+        "description": "Response structure for Shopify locations including their product inventories."
+      },
+      "PublishProductDto": {
+        "type": "object",
+        "properties": {
+          "platformConnectionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The ID of the platform connection to use."
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["locationId", "quantity"],
+              "properties": {
+                "locationId": { 
+                  "type": "string", 
+                  "description": "The platform location ID."
+                },
+                "quantity": { "type": "integer", "minimum": 0, "description": "Inventory quantity for this location." }
+              }
+            },
+            "description": "Inventory levels for platform locations."
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "enum": ["ACTIVE", "DRAFT", "ARCHIVED"], "description": "Status of the product on the platform." },
+              "vendor": { "type": "string", "description": "Vendor for the product on the platform." },
+              "productType": { "type": "string", "description": "Product type for the product on the platform." },
+              "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags for the product on the platform." }
+            },
+            "nullable": true,
+            "description": "Optional platform-specific publishing options."
+          }
+        },
+        "required": ["platformConnectionId", "locations"]
+      },
+      "InitialScanResult": {
+        "type": "object",
+        "properties": {
+          "countProducts": { "type": "integer", "description": "Number of products found on the platform." },
+          "countVariants": { "type": "integer", "description": "Number of product variants found on the platform." },
+          "countLocations": { "type": "integer", "description": "Number of locations found on the platform." },
+          "analysisId": { "type": "string", "format": "uuid", "nullable": true, "description": "Optional ID for a more detailed analysis record, if applicable." }
+        },
+        "description": "Summary of an initial platform scan."
+      },
+      "PlatformProductData": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Platform-specific ID of the product/variant." },
+          "sku": { "type": "string", "nullable": true },
+          "barcode": { "type": "string", "nullable": true },
+          "title": { "type": "string", "nullable": true },
+          "price": { "type": ["string", "number"], "nullable": true },
+          "imageUrl": { "type": "string", "format": "uri", "nullable": true }
+        },
+        "description": "Basic data for a product/variant from an external platform."
+      },
+      "MappingSuggestion": {
+        "type": "object",
+        "properties": {
+          "platformProduct": { "$ref": "#/components/schemas/PlatformProductData" },
+          "suggestedCanonicalVariant": { "$ref": "#/components/schemas/SimpleProductVariant", "nullable": true },
+          "matchType": { "type": "string", "enum": ["SKU", "BARCODE", "NONE"], "description": "Type of match found (SKU, Barcode, or None)." },
+          "confidence": { "type": "number", "format": "float", "minimum": 0, "maximum": 1, "description": "Confidence score of the suggestion (0 to 1)." }
+        },
+        "description": "A suggestion for mapping a platform product to a sssync canonical variant."
+      },
+      "ConfirmedMatch": {
+        "type": "object",
+        "required": ["platformProductId", "action"],
+        "properties": {
+          "platformProductId": { "type": "string", "description": "The ID of the product on the external platform." },
+          "platformVariantId": { "type": "string", "nullable": true, "description": "The ID of the variant on the external platform, if applicable." },
+          "platformProductSku": { "type": "string", "nullable": true, "description": "SKU of the product on the external platform, for reference."}, 
+          "platformProductTitle": { "type": "string", "nullable": true, "description": "Title of the product on the external platform, for reference."}, 
+          "sssyncVariantId": { "type": "string", "format": "uuid", "nullable": true, "description": "ID of the sssync canonical variant to link to (if action is 'link'). Null if creating new or ignoring." },
+          "action": { "type": "string", "enum": ["link", "create", "ignore"], "description": "Action to take for this platform product: link to existing, create new, or ignore." }
+        },
+        "description": "Represents a user-confirmed mapping action for a platform product."
+      },
+      "ConfirmMappingsDto": {
+        "type": "object",
+        "required": ["confirmedMatches"],
+        "properties": {
+          "confirmedMatches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ConfirmedMatch" },
+            "description": "Array of confirmed mapping actions."
+          },
+          "syncRules": { 
+            "type": "object", 
+            "additionalProperties": true, 
+            "nullable": true, 
+            "description": "Optional overall sync rules to apply for this connection based on the confirmation step."
+          }
+        },
+        "description": "DTO for submitting confirmed product mappings."
+      },
+      "SyncPreview": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "description": "Type of action (e.g., CREATE_PRODUCT, LINK_VARIANT)." },
+                "description": { "type": "string", "description": "Human-readable description of the action." }
+              }
+            },
+            "description": "List of actions that will be performed during the initial sync."
+          }
+          // Add other preview details as needed, e.g., counts
+        },
+        "description": "Preview of the initial synchronization process."
+      },
+      "SkuCheckDto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "The SKU to check for uniqueness."
+          }
+        },
+        "required": ["sku"]
+      },
+      "PlatformConnectionDetails": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "The ID of the platform connection." },
+          "name": { "type": "string", "description": "The name of the platform connection." },
+          "type": { "type": "string", "description": "The type of the platform connection." },
+          "status": { "type": "string", "description": "The status of the platform connection." },
+          "lastSyncedAt": { "type": "string", "format": "date-time", "nullable": true, "description": "The last synced timestamp for the platform connection." }
+        },
+        "description": "Details about a platform connection."
+      },
+      "UpdateSubscriptionDto": {
+        "type": "object",
+        "required": ["subscriptionTierId"],
+        "properties": {
+          "subscriptionTierId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The UUID of the new subscription tier to assign to the user."
+          }
+        },
+        "description": "DTO for updating a user's subscription tier."
       }
     },
     "securitySchemes": {

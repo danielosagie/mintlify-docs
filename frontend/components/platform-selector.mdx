@@ -1,0 +1,76 @@
+---
+title: 'Component: PlatformSelector'
+description: 'Documentation for the PlatformSelector component, allowing users to select one or more e-commerce platforms.'
+icon: 'list-checks'
+---
+
+The `PlatformSelector` component provides a user interface for selecting one or more e-commerce platforms. This is likely used in contexts such as configuring which platforms to publish a product to, or filtering data by platform.
+
+Located at `sssync_mobile_test/src/components/PlatformSelector.tsx`.
+
+## Purpose
+
+-   To offer a standardized way for users to choose from a list of available e-commerce platforms (e.g., Shopify, Square, Clover, Amazon, eBay).
+-   To manage the state of selected platforms and notify a parent component of changes.
+
+## Props
+
+-   **`platforms` (or `selectedPlatforms`): `string[]` (Required)**: An array of platform keys (strings) that are currently selected. The component uses this to highlight the selected platforms.
+-   **`onChange: (selectedPlatforms: string[]) => void` (Required)**: A callback function that is invoked when the user's selection of platforms changes. It receives the new array of selected platform keys.
+-   **`availablePlatforms?: { key: string; name: string; icon?: string }[]` (Optional)**: An array of objects defining all platforms that can be selected. If not provided, this list might be hardcoded within the component or fetched from a global configuration.
+    -   `key`: Unique identifier for the platform (e.g., "shopify").
+    -   `name`: Display name for the platform (e.g., "Shopify").
+    -   `icon`: Name of an icon to represent the platform.
+
+## Key Features & Logic
+
+-   **Display Platforms**: Renders a list of available platforms, typically showing their name and icon.
+-   **Selection State**: Visually indicates which platforms are currently selected (e.g., highlighting, checkmarks).
+-   **Toggle Selection (`togglePlatform(platformId)`)**: 
+    -   When a user taps on a platform, this function is called with the platform's key (`platformId`).
+    -   It updates the internal list of selected platforms: if the platform was already selected, it's removed; otherwise, it's added.
+    -   After updating, it calls the `onChange` prop with the new array of selected platform keys.
+-   **Visual Customization**: 
+    -   `getPlatformColor(platformId)`: May be used to apply platform-specific colors to icons or backgrounds for better visual distinction.
+    -   `getIconForPlatform(platform)`: Retrieves the appropriate icon for each platform.
+
+## Implementation Notes
+
+-   The component might render each platform as a touchable button or a chip.
+-   It could support single-selection or multi-selection mode, though the `onChange` prop taking an array of strings suggests multi-selection is the primary use case.
+
+## Usage Example
+
+```tsx
+import PlatformSelector from '../components/PlatformSelector';
+import { View, Text } from 'react-native';
+import { useState } from 'react';
+
+const availablePlatformsForSelection = [
+  { key: 'shopify', name: 'Shopify', icon: 'shopify' },
+  { key: 'square', name: 'Square', icon: 'square' },
+  { key: 'clover', name: 'Clover', icon: 'clover' },
+];
+
+const ProductSettingsScreen = () => {
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>(['shopify']);
+
+  const handlePlatformChange = (newSelection: string[]) => {
+    setSelectedDestinations(newSelection);
+    console.log('Selected platforms:', newSelection);
+  };
+
+  return (
+    <View>
+      <Text>Select platforms to publish to:</Text>
+      <PlatformSelector 
+        platforms={selectedDestinations} 
+        onChange={handlePlatformChange} 
+        availablePlatforms={availablePlatformsForSelection} 
+      />
+    </View>
+  );
+};
+```
+
+This component simplifies the task of allowing users to make choices from a predefined set of platforms, which is a common requirement in a multi-channel e-commerce application. 

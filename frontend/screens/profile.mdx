@@ -1,0 +1,119 @@
+---
+title: 'Screen: Profile & Settings'
+description: 'Documentation for the ProfileScreen, where users manage their account, platform connections, settings, and subscription.'
+icon: 'user-cog'
+---
+
+The `ProfileScreen` is a central hub for users to manage their account information, connected e-commerce platforms (Shopify, Amazon, Clover, Square), application settings, and view subscription details. It also provides the logout functionality.
+
+Located at `sssync_mobile_test/src/screens/ProfileScreen.tsx`.
+
+## Key Functionalities
+
+-   **Display User Information**: Shows static user details like name, email, and current plan (mock data in the current version: `accountInfo`).
+-   **Manage Platform Connections**:
+    -   **List Connections**: Fetches and displays active platform connections from the backend API (`GET /platform-connections`).
+        -   Uses `useFocusEffect` and a Supabase realtime subscription on the `PlatformConnections` table to keep the list updated.
+        -   Displays platform icon, parsed display name (e.g., removing `.myshopify.com`), and a "Connected" status.
+    -   **Add New Connection**: 
+        -   Opens a modal (`isAddConnectionModalVisible`) showing available platforms (`AVAILABLE_PLATFORMS`).
+        -   Disables already connected platforms in the modal.
+        -   For **Shopify**: Initiates a guided flow (`shopifyFlowStep`).
+        -   For other platforms: Shows a "not implemented" alert.
+    -   **Edit Mode for Connections**: Toggles `isEditMode` to show delete buttons next to each connection.
+    -   **Disconnect Platform**: 
+        -   `handleDisconnectPlatform(connectionId, platformName)`: Prompts for confirmation, then calls the backend API (`DELETE /platform-connections/:connectionId`) to remove the connection. Refreshes the list on success.
+-   **Shopify Connection Flow**:
+    -   Triggered from the "Add Connection" modal for Shopify.
+    -   Presents a modal (`shopifyFlowStep === 'enterInfo'`) with two options:
+        1.  **Guided Setup**: 
+            -   `openShopifyForCopy()`: Opens `https://api.sssync.app/auth/shopify/initiate-store-picker` in a web browser. This backend endpoint likely redirects to Shopify for store selection/login. The user is instructed to copy the URL from their Shopify Admin dashboard.
+            -   User pastes the URL into a `TextInput` (`pastedShopifyUrl`).
+            -   `handlePasteFromClipboard()`: Utility to paste from clipboard into the input.
+        2.  **Manual Input**: User types their shop name (e.g., `your-store-name`) into a `TextInput` (`manualShopName`).
+    -   `handleConfirmInput()`: 
+        -   Extracts shop name from `pastedShopifyUrl` (if present) or uses `manualShopName`.
+        -   Calls `connectWithExtractedShopName(extractedShopName)`.
+    -   `connectWithExtractedShopName(extractedShopName)`:
+        -   Constructs a URL for `https://api.sssync.app/auth/shopify/login` with `userId`, `shop` (the extracted name), and `finalRedirectUri` (`sssyncapp://auth-callback`).
+        -   Opens this URL using `WebBrowser.openAuthSessionAsync()`. The deep link (`sssyncapp://auth-callback`) should be handled by the app to confirm success and refresh state.
+-   **Settings**: 
+    -   Notifications Toggle (`notificationsEnabled`): UI only, state managed locally.
+    -   Dark Mode Toggle (`darkModeEnabled`): UI only, state managed locally.
+-   **Menu Items**: Displays a list of other options (Subscription, Privacy, Help, About), currently logging the user token on press (`logCurrentUserToken`).
+-   **Logout**: 
+    -   `handleLogout()`: Calls `authContext.signOut()`, then `supabase.auth.signOut()`, and removes `userToken` from `AsyncStorage`. Navigates the user out of the authenticated part of the app.
+-   **Developer Utilities**: 
+    -   `logCurrentUserToken()`: Fetches and logs the current Supabase session access token for debugging.
+
+## Core Data Structures & Interfaces
+
+-   **`ProfileScreenRouteParams`**: Defines route parameters, including an optional `refresh` number to trigger data re-fetch via `useFocusEffect`.
+-   **`PlatformId`**: Type for platform keys (e.g., 'shopify', 'amazon').
+-   **`PlatformConnection`**: Interface for connection objects fetched from the backend (ID, PlatformType, DisplayName, Status, UserId, etc.).
+-   **`ShopifyFlowStep`**: Type for managing Shopify connection modal state (`idle`, `enterInfo`).
+
+## State Management
+
+-   `connections`: Array of `PlatformConnection` objects.
+-   `isLoadingConnections`, `connectionError`: For connection fetching state.
+-   `isAddConnectionModalVisible`, `isEditMode`: Modal visibility and edit state for connections.
+-   `shopifyFlowStep`, `pastedShopifyUrl`, `manualShopName`: For Shopify connection flow.
+-   `notificationsEnabled`, `darkModeEnabled`: Local UI settings.
+
+## Major Functions & Logic
+
+-   **Data Fetching & Initialization**:
+    -   `fetchConnections()`: Fetches platform connections from `GET /platform-connections` using JWT auth. Handles loading and error states. Wrapped in `useCallback`.
+    -   `useFocusEffect`: Calls `fetchConnections()` on screen focus/mount and when `route.params.refresh` changes.
+    -   Realtime Subscription: `useEffect` sets up a Supabase realtime subscription to the `PlatformConnections` table, filtered by `UserId`. On any change, it re-runs `fetchConnections()` after a short delay.
+-   **Platform Connection Management**: Covered in Key Functionalities.
+-   **Authentication & Session**: 
+    -   Uses `AuthContext` (likely for global auth state).
+    -   Relies on `supabase.auth.getUser()` and `supabase.auth.getSession()` for user details and tokens.
+-   **Helper Functions**: `getPlatformColor()`, `getIconForPlatform()`.
+
+## Usage Example
+
+`ProfileScreen` is a primary screen within the main authenticated section of the app, usually accessible via a Tab Navigator.
+
+```tsx
+// Example in a Tab Navigator (e.g., AppNavigator.tsx)
+import ProfileScreen from './path/to/ProfileScreen';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+// ... other imports
+
+const Tab = createBottomTabNavigator(); // Or your specific tab navigator
+
+function MainAppTabs() {
+  return (
+    <Tab.Navigator>
+      {/* ... other tabs like Dashboard, Inventory, Orders ... */}
+      <Tab.Screen
+        name="ProfileTab" // Name of the route
+        component={ProfileScreen}
+        options={{
+          title: 'Profile', // Title displayed in the tab bar
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="account-circle-outline" color={color} size={size} />
+          ),
+          headerShown: false, // ProfileScreen manages its own header/title typically
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+export default MainAppTabs;
+```
+
+Navigating to the Profile tab will display this screen. The `useFocusEffect` hook, along with `route.params.refresh`, can be used to trigger data re-fetching if needed after certain operations (e.g., a new platform connection being established via deep linking).
+
+## UI Components
+
+-   `ScrollView`, `Animated.View` from `react-native-reanimated`.
+-   Custom: `Card`, `Button`, `PlaceholderImage`.
+-   Standard: `Modal`, `Switch`, `TextInput`, `ActivityIndicator`.
+-   Icons: `react-native-vector-icons/MaterialCommunityIcons`.
+
+This screen serves as a crucial settings and management area for the user. 

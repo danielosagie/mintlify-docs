@@ -1,0 +1,117 @@
+---
+title: 'Screen: Create Account'
+description: 'Documentation for the CreateAccountScreen, responsible for new user registration and profile setup.'
+icon: 'user-plus'
+---
+
+The `CreateAccountScreen` enables new users to register for an sssync account. After initial signup (via `AuthScreen`), users might be directed here to complete their profile by providing additional business-related information.
+
+Located at `sssync_mobile_test/src/screens/CreateAccountScreen.tsx`.
+
+## Key Functionalities
+
+-   **Profile Information Input**: Collects user details such as business name, phone number, region, occupation, and default currency.
+-   **Data Persistence**: Saves the collected profile information to the Supabase `Users` and `UserProfiles` tables.
+-   **Navigation**: Upon successful profile completion, navigates the user to the main application (e.g., `TabNavigator`), marking onboarding as complete.
+
+## Navigation & Type Definitions
+
+-   **`AppStackParamList`**: Defines route parameters for the app stack, including `CreateAccountScreen` (no specific params) and `TabNavigator`.
+-   **`CreateAccountScreenNavigationProp`**: A specific type for the navigation prop within this screen, typed with `StackNavigationProp` from React Navigation.
+
+## State Management
+
+The screen manages local state for:
+
+-   Input fields: `businessName`, `phoneNumber`, `region`, `occupation`, `currency`.
+-   State for `DropDownPicker` components: `openRegion`, `regionItems`, `openCurrency`, `currencyItems`.
+-   Loading indicators: `loading` (to provide feedback during the profile save process).
+
+## Major Functions & Logic
+
+-   **`handleCompleteProfile()`**: 
+    -   This is the core function triggered when the user submits their profile details.
+    -   Performs validation to ensure all fields are filled.
+    -   Retrieves the current authenticated user via `supabase.auth.getUser()`.
+    -   Updates the existing user record in the `Users` table with `phoneNumber`, `region`, `occupation`, `currency`, and sets `isOnboardingComplete` to `true`.
+    -   Upserts a record into the `UserProfiles` table with `UserId` and `DisplayName` (using `businessName`).
+    -   Handles responses:
+        -   On success: Shows an alert and navigates the user to the `TabNavigator` using `navigation.reset` to prevent going back to the onboarding flow.
+        -   On error: Displays an `Alert` with the error message.
+    -   Manages the `loading` state.
+
+## User Interactions
+
+-   Entering business details into form fields.
+-   Selecting region and currency from dropdown pickers.
+-   Tapping a "Continue" or "Complete Profile" button.
+
+## Error Handling & Feedback
+
+-   Displays `Alert` pop-ups if form validation fails or if saving data to Supabase encounters an error.
+-   Uses a loading indicator on the submission button while the save request is in progress.
+
+## Usage Example
+
+`CreateAccountScreen` is typically part of an initial setup flow after a user has signed up and logged in for the first time. It might be conditionally rendered by `AppNavigator` if the user's `isOnboardingComplete` flag is false.
+
+```tsx
+// Example: Integrating CreateAccountScreen into an AppStack navigator
+// In sssync_mobile_test/src/navigation/AppNavigator.tsx or similar
+
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import CreateAccountScreen from '../screens/CreateAccountScreen';
+import TabNavigator from './TabNavigator'; // Assuming TabNavigator is defined elsewhere
+
+// Assuming AppStackParamList is defined, including CreateAccountScreen and TabNavigator
+export type AppStackParamList = {
+  CreateAccountScreen: undefined;
+  TabNavigator: undefined; // This could be a navigator itself
+  // ... other screens like ProductDetail, AddListing
+};
+
+const Stack = createNativeStackNavigator<AppStackParamList>();
+
+const AppStack = ({ initialScreenName }: { initialScreenName: 'CreateAccountScreen' | 'TabNavigator' }) => (
+  // The `initialRouteName` for this stack would be determined by the AppNavigator's logic 
+  // (e.g., checking if onboarding is complete).
+  <Stack.Navigator initialRouteName={initialScreenName} screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="CreateAccountScreen" component={CreateAccountScreen} />
+    <Stack.Screen name="TabNavigator" component={TabNavigator} />
+    {/* ... other screens accessible after login/onboarding ... */}
+  </Stack.Navigator>
+);
+
+// In the root AppNavigator, logic would determine whether to show AuthStack or AppStack,
+// and if AppStack, whether to start with CreateAccountScreen or TabNavigator.
+// Example snippet from AppNavigator's logic:
+// ...
+// const [initialAppScreen, setInitialAppScreen] = useState('TabNavigator');
+// useEffect(() => {
+//   const checkUserProfile = async () => {
+//     const { data: { user } } = await supabase.auth.getUser();
+//     if (user) {
+//       const { data: profile, error } = await supabase
+//         .from('Users') // Or your specific profiles table
+//         .select('isOnboardingComplete')
+//         .eq('Id', user.id)
+//         .single();
+//       if (profile && !profile.isOnboardingComplete) {
+//         setInitialAppScreen('CreateAccountScreen');
+//       } else {
+//         setInitialAppScreen('TabNavigator');
+//       }
+//     }
+//   };
+//   if (session) checkUserProfile();
+// }, [session]);
+// ...
+// {session ? (
+//   <RootStack.Screen name="AppStack" component={AppStack} initialParams={{ initialScreenName: initialAppScreen }} />
+// ) : (
+//   <RootStack.Screen name="AuthStack" component={AuthStackComponent} />
+// )}
+// ...
+```
+
+This screen is a vital step for new users to properly configure their account details, ensuring the application has the necessary information for its features. It directly interacts with Supabase to persist this data. 

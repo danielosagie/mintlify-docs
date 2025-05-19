@@ -1,0 +1,135 @@
+---
+title: 'Directory Structure'
+description: "Understanding the organization of files and folders in the sssync frontend (React Native/Expo) project."
+icon: 'folder-open'
+---
+
+A well-organized directory structure is key to maintaining a scalable and understandable codebase. This page outlines the typical structure used in the sssync frontend mobile application, built with React Native and Expo.
+
+## Root Directory
+
+The root directory of `sssync_mobile_test` contains:
+
+-   `package.json`: Lists project dependencies and scripts.
+-   `app.json`: Expo configuration file.
+-   `babel.config.js`: Babel configuration.
+-   `metro.config.js`: Metro bundler configuration.
+-   `tsconfig.json`: TypeScript configuration.
+-   `src/`: The main directory containing all application source code.
+-   Other configuration files (e.g., `.gitignore`, `.env` (locally), `README.md`).
+
+## `src/` Directory
+
+The `src/` directory is where most of the development happens. Here's a common organization:
+
+-   **`screens/`**:
+    -   Contains components that represent full screens in the application (e.g., `DashboardScreen.tsx`, `ProfileScreen.tsx`, `AddListingScreen.tsx`).
+    -   Each screen typically handles its own data fetching, state management (local or via contexts/global state), and user interactions, or delegates these to hooks and services.
+
+-   **`components/`**:
+    -   Houses reusable UI components that are used across multiple screens or within other components (e.g., `Button.tsx`, `Card.tsx`, `PlaceholderImage.tsx`).
+    -   Components here should be generic and configurable via props.
+    -   May be further subdivided (e.g., `components/common/`, `components/specific-feature/`).
+
+-   **`navigation/`**:
+    -   Manages all aspects of app navigation using `react-navigation`.
+    -   `AppNavigator.tsx`: Defines the root navigator, stack navigators (e.g., AuthStack, MainAppStack), and tab navigators.
+    -   May also contain type definitions specific to navigation params (`navigation.types.ts` or similar).
+
+-   **`contexts/`** (or `store/`, `state/`):
+    -   Contains React Context providers and hooks for global state management.
+    -   Examples: `AuthContext.tsx` (for user authentication state), `ThemeContext.tsx` (for UI theme management).
+    -   If using other state management libraries like Redux or Zustand, their respective stores, reducers, and actions would reside here or in a dedicated `store/` folder.
+
+-   **`assets/`**:
+    -   Stores static assets like images (`images/`), fonts (`fonts/`), icons, and potentially other media files.
+
+-   **`hooks/`**:
+    -   Contains custom React Hooks that encapsulate reusable logic, often stateful or side-effectful (e.g., `useDebounce.ts`, `useForm.ts`, `useNotifications.ts`).
+
+-   **`services/`** (or `api/`):
+    -   Handles communication with the backend API.
+    -   May include Supabase client setup, API client instances (e.g., Axios), and functions for specific API calls (e.g., `productService.ts`, `authService.ts`).
+    -   This layer abstracts data fetching and mutation logic from components and screens.
+
+-   **`utils/`**:
+    -   A collection of utility functions and helpers that are pure and can be used throughout the application (e.g., `dateUtils.ts`, `stringUtils.ts`, `validationUtils.ts`).
+
+-   **`config/`**:
+    -   Stores application-wide configuration constants, such as API base URLs (though these are often better in `.env`), feature flags, or default settings.
+    -   Example: `appConfig.ts`, `platformConfig.ts`.
+
+-   **`styles/`**:
+    -   May contain global stylesheets, theme definitions (if not in `ThemeContext.tsx`), or common styling patterns.
+    -   Example: `globalStyles.ts`, `theme.ts`.
+
+-   **`types/`** (or `interfaces/`, `models/`):
+    -   Contains shared TypeScript type definitions and interfaces used across the application.
+    -   This helps maintain type safety and consistency.
+    -   Can be organized by domain (e.g., `types/product.ts`, `types/user.ts`) or kept in a global `types.ts` for smaller projects.
+
+## Example File: `src/screens/DashboardScreen.tsx`
+
+A typical screen component might look like this:
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Example context usage
+import Button from '../components/Button'; // Example component usage
+import { fetchDashboardData } from '../services/dashboardService'; // Example service usage
+import { DashboardData } from '../types/dashboard'; // Example type usage
+
+const DashboardScreen = () => {
+  const { theme } = useTheme();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const result = await fetchDashboardData();
+        setData(result);
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+        // Handle error appropriately
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (loading) {
+    return <View style={styles.container}><Text>Loading...</Text></View>;
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
+      {/* Render dashboard content based on 'data' */}
+      <Button title="Refresh" onPress={() => fetchDashboardData().then(setData)} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+});
+
+export default DashboardScreen;
+```
+
+This structure helps in separating concerns, improving code reusability, and making the project easier to navigate and maintain as it grows.
+Adherence to this structure, or a consciously chosen variation, is encouraged for all new development. 

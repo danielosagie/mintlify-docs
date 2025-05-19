@@ -1,0 +1,68 @@
+---
+title: 'Frontend: Navigation'
+description: 'Details of the navigation structure and routing in the sssync mobile application, managed by React Navigation.'
+icon: 'route'
+---
+
+Navigation within the sssync mobile application is handled by the `react-navigation` library. The primary configuration and setup for navigation are located in `sssync_mobile_test/src/navigation/AppNavigator.tsx`.
+
+## Core Concepts
+
+-   **Navigators**: `react-navigation` uses different types of navigators to define various navigation patterns (e.g., stack, tabs, drawer).
+-   **Screens**: Individual views within the application that users can navigate to.
+-   **Routes**: Define the mapping between a name and a screen component.
+
+## Key Navigators in `AppNavigator.tsx`
+
+Based on the outline of `AppNavigator.tsx`, the application likely employs the following navigation structure:
+
+1.  **Root Stack Navigator (`RootStackParamList`)**: This is the top-level navigator that likely manages the overall application flow, potentially switching between authentication screens and the main app content.
+    -   It might contain `AuthStack` and `AppStack` as nested navigators.
+
+2.  **Authentication Stack (`AuthStackParamList`, `AuthStack`)**: Handles screens related to user authentication.
+    -   **Screens Include**: `InitialScreen`, `OnboardingSlides`, `AuthScreen` (for login/signup).
+    -   The `isFirstLaunch` and `devForceOnboarding` props suggest conditional rendering of onboarding slides.
+
+3.  **Main Application Stack (`AppStackParamList`, `AppStack`)**: Contains the core authenticated experience of the application.
+    -   It likely takes an `initialScreenName` prop to determine whether to start at `CreateAccountScreen` or the `TabNavigator`.
+    -   **Screens Include**: `CreateAccountScreen`, `ProductDetail`, `PastScans`, `AddListing`.
+    -   It also nests the `TabNavigator`.
+
+4.  **Tab Navigator (`TabNavigator`)**: Provides the main bottom tab-based navigation for authenticated users.
+    -   **Tabs Likely Include** (inferred from typical app structure and screen names):
+        -   `Dashboard`: Navigates to `DashboardScreen`.
+        -   `Inventory`: Navigates to `InventoryScreen`.
+        -   `Marketplace`: Navigates to `MarketplaceScreen`.
+        -   `Orders` (or `InventoryOrders`): Navigates to `OrdersScreen` or `InventoryOrdersScreen`.
+        -   `Profile`: Navigates to `ProfileScreen`.
+    -   Custom tab bar component (`TabBar.tsx`) might be used for styling and custom icons.
+
+## Navigation Flow
+
+-   **App Initialization (`AppNavigator` component)**:
+    -   Performs asynchronous setup (`prepare`, `bootstrapAsync`).
+    -   Checks for first launch status (`isFirstLaunch`) and developer flags (`devForceOnboarding`).
+    -   Checks user authentication state (e.g., presence of a session token).
+-   **Conditional Routing**: Based on the authentication state and first launch status, the `AppNavigator` decides which stack to render initially:
+    -   If the user is not authenticated: Renders `AuthStack`.
+    -   If the user is authenticated:
+        -   May first check if a profile needs to be created (navigating to `AppStack` with `initialScreenName: 'CreateAccountScreen'`).
+        -   Otherwise, navigates to `AppStack` with `initialScreenName: 'TabNavigator'`, showing the main app interface.
+-   **Screen Navigation**: Within each navigator, screens can navigate to other screens using `navigation.navigate('ScreenName', { params })` or other navigation actions provided by `react-navigation`.
+-   **Parameters**: Screens can receive parameters via route params (e.g., `ProductDetail` screen expects `productId`).
+
+## Key Files
+
+-   `sssync_mobile_test/src/navigation/AppNavigator.tsx`: The central hub for all navigation logic and stack definitions.
+-   `sssync_mobile_test/src/components/TabBar.tsx`: (If used) Defines the custom appearance and behavior of the bottom tab bar.
+
+## Important Considerations for Developers
+
+-   **Adding New Screens**: When adding a new screen, you'll need to:
+    1.  Define it in the appropriate `ParamList` type (e.g., `AppStackParamList`).
+    2.  Add it as a `<Stack.Screen>` or `<Tab.Screen>` component within the relevant navigator in `AppNavigator.tsx`.
+-   **Navigation Actions**: Use the `useNavigation` hook from `@react-navigation/native` to get access to the navigation object within your screen components.
+-   **Type Safety**: Utilize the defined ParamList types for type-safe navigation and parameter passing.
+-   **Deep Linking**: Configuration for deep linking (opening specific app screens from URLs) might also be handled within `AppNavigator.tsx` or related Expo configuration files.
+
+Understanding the structure within `AppNavigator.tsx` is crucial for effectively working with the application's flow and adding new navigational elements. 

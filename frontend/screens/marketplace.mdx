@@ -1,0 +1,84 @@
+---
+title: 'Screen: Marketplace'
+description: 'Documentation for the MarketplaceScreen, where users can browse items (currently mock data) and simulate adding them to their inventory.'
+icon: 'store'
+---
+
+The `MarketplaceScreen` provides a UI for users to browse products, ostensibly from an external marketplace or a curated list. The current version uses mock data for display and includes a feature to simulate adding these items to the user's inventory.
+
+Located at `sssync_mobile_test/src/screens/MarketplaceScreen.tsx`.
+
+**Note:** This screen currently uses `mockMarketplaceItems` for its data source. The `handleAddToInventory` function logs to the console and does not perform a real inventory update.
+
+## Key Functionalities
+
+-   **Display Marketplace Items**: Shows a grid of products using `mockMarketplaceItems`.
+    -   Each item is rendered by the `MarketplaceItem` component.
+    -   Displays item title, price, seller, and an image placeholder colored by platform.
+    -   Items can be tapped to navigate to a `ProductDetail` screen (passing item data).
+-   **Category Filtering**: Displays a horizontal list of category chips (e.g., "All", "Food", "Crafts"). Selecting a category updates the `selectedCategory` state, though actual filtering logic based on this state is not explicitly shown in the provided item rendering path.
+-   **Search Functionality**: Includes a search bar to filter marketplace items, updating the `searchQuery` state. The filtering logic based on this state is not explicitly detailed for `mockMarketplaceItems` in the `FlatList` data prop.
+-   **Add to Inventory (Simulated)**: Each `MarketplaceItem` has an "add" button that calls `handleAddToInventory(item)`.
+    -   `handleAddToInventory(item)`: Currently logs a message to the console indicating the item was "added".
+-   **Static Sections**: Includes UI sections for "Top Sellers" and "Browse Categories" which appear to be static or use mock representations.
+
+## Core Components & Props
+
+-   **`MarketplaceItem` Component**:
+    -   `item`: The marketplace product data object (from `mockMarketplaceItems`).
+    -   `onAddToInventory`: Callback function (`handleAddToInventory` from `MarketplaceScreen`).
+    -   `navigation`: React Navigation prop, used to navigate to `ProductDetail` on item press.
+-   **`MarketplaceScreen` Props**:
+    -   `navigation`: Standard React Navigation prop for screen-level navigation.
+
+## State Management
+
+-   `searchQuery`: Stores the current text in the search bar.
+-   `selectedCategory`: Stores the currently selected category chip.
+
+## Major Functions & Logic
+
+-   **`getPlatformColor(platform)`**: Utility function to return a color based on the platform string (e.g., "Shopify", "Amazon"). Used for placeholder image backgrounds in `MarketplaceItem`.
+-   **`handleAddToInventory(item)`**: As mentioned, currently logs to console. In a full implementation, this would likely navigate to an `AddListingScreen` with `item` data or call a backend API.
+
+## Usage Example
+
+`MarketplaceScreen` is typically incorporated into a Tab Navigator as a primary section of the app.
+
+```tsx
+// Example in a Tab Navigator (e.g., AppNavigator.tsx)
+import MarketplaceScreen from './path/to/MarketplaceScreen';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Or your icon library
+// ... other imports
+
+const Tab = createBottomTabNavigator(); // Or your specific tab navigator
+
+function MainAppTabs() {
+  return (
+    <Tab.Navigator>
+      {/* ... other tabs ... */}
+      <Tab.Screen
+        name="MarketplaceTab" // Name of the route
+        component={MarketplaceScreen}
+        options={{
+          title: 'Marketplace', // Title displayed in the tab bar
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="compass-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      {/* ... other tabs ... */}
+    </Tab.Navigator>
+  );
+}
+
+export default MainAppTabs;
+```
+
+## UI Components
+
+-   Uses `FlatList` in a two-column grid to display marketplace items.
+-   Custom components: `Card`, `PlaceholderImage`, `Button`.
+-   Icons from `react-native-vector-icons/MaterialCommunityIcons`.
+-   Animated views from `react-native-reanimated` for item entry.
+-   Includes `ScrollView` for horizontal category chips. 

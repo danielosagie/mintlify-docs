@@ -1,0 +1,86 @@
+---
+title: 'Screen: Inventory & Orders'
+description: 'Documentation for the InventoryOrdersScreen, which displays lists of inventory items and customer orders with a tabbed interface.'
+icon: 'list-check'
+---
+
+The `InventoryOrdersScreen` provides a consolidated view for users to manage and review their product inventory and customer orders. It features a tabbed interface to switch between "Inventory" and "Orders" lists.
+
+Located at `sssync_mobile_test/src/screens/InventoryOrdersScreen.tsx`.
+
+**Note:** The current implementation of this screen primarily uses mock data (`mockInventoryItems`, `mockOrders`) for demonstration and UI development purposes.
+
+## Key Functionalities
+
+-   **Tabbed Navigation**: Allows users to switch between an "Inventory" view and an "Orders" view.
+-   **Inventory Display**:
+    -   Shows a grid of inventory items.
+    -   Each item can display an image (or a placeholder), title, price, stock quantity, and platform badges.
+    -   Includes sections for "Categories" and "Your Activity" (seller stats), currently using static/mock information.
+-   **Orders Display**:
+    -   Shows a list of orders.
+    -   Each order displays ID, platform, customer name, number of items, date, status, and total amount.
+    -   Provides "Details" and "Track" action buttons (currently logging to console).
+-   **Search Functionality**: A search bar allows users to filter products (in Inventory tab) or orders based on a query.
+-   **Filtering**:
+    -   For Orders: Chips to filter by status (e.g., "All", "Delivered", "In Transit").
+    -   (Inventory filter chips seem to be present but might be intended for order statuses, review needed).
+
+## Data Structures & Props
+
+This screen does not take explicit navigation props for its core content display, as it's designed to be a self-contained part of a larger navigation structure (like a Tab Navigator). It manages its internal state for active tab, search queries, and filters.
+
+It uses mock data structures `mockInventoryItems` and `mockOrders` imported from `../data/mockData.ts`.
+
+## Helper Functions
+
+-   **`renderInventoryItem({ item })`**: Renders a single item in the inventory grid.
+-   **`renderOrderItem({ item })`**: Renders a single order card in the orders list.
+-   **`getPlatformColor(platform, theme)`**: Returns a specific color based on the platform name (e.g., Shopify, Amazon) and current theme.
+-   **`getStatusIcon(status)`**: Returns an appropriate MaterialCommunityIcon name based on the order status string (e.g., 'pending' -> 'timer-sand').
+-   **`formatDate(dateString)`**: Formats a date string into a user-friendly representation (e.g., "Today", "Yesterday", or "Oct 28").
+-   **`getStatusColor(status, theme)`**: Returns a specific color based on the order status string and theme, typically for badges.
+-   **`getRandomColor(id)`**: Returns a pseudo-random color from a predefined list based on an item's ID, used for placeholder image backgrounds.
+
+## Usage Example
+
+The `InventoryOrdersScreen` is typically used as a screen within a Tab Navigator.
+
+```tsx
+// Example in a Tab Navigator (e.g., AppNavigator.tsx or a nested TabNavigator)
+import InventoryOrdersScreen from './path/to/InventoryOrdersScreen';
+// ... other imports
+
+const Tab = createBottomTabNavigator(); // Or your specific tab navigator
+
+function MyTabs() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen
+        name="Inventory" // The tab name might be 'Inventory', 'Items', 'Products & Orders' etc.
+        component={InventoryOrdersScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="view-dashboard-outline" color={color} size={size} />
+          ),
+          // headerShown: false, // If you want to manage header within the screen itself
+        }}
+      />
+      {/* ... other tabs ... */}
+    </Tab.Navigator>
+  );
+}
+
+export default MyTabs;
+```
+
+In this setup, `InventoryOrdersScreen` would handle its own internal state for switching between the inventory and orders views.
+
+## UI Details
+
+-   **Layout**: Uses `FlatList` for displaying both inventory (2 columns) and orders (single column).
+-   **Styling**: Leverages `StyleSheet` for component styling and `useTheme` for theme-aware colors.
+-   **Animations**: Uses `react-native-reanimated` (`FadeInUp`) for subtle entry animations of content.
+-   **Components**: Utilizes custom components like `Card`, `Button`, and `PlaceholderImage`.
+
+This screen is central to providing users with an overview of their operational data. Efficient data fetching, clear presentation, and easy navigation are key for its usability. 

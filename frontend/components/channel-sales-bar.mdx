@@ -1,0 +1,69 @@
+---
+title: 'Component: ChannelSalesBar'
+description: 'Documentation for the ChannelSalesBar component, likely used for visualizing sales data per channel.'
+icon: 'bar-chart-2'
+---
+
+The `ChannelSalesBar` component is likely a visual element used within the sssync mobile application, possibly on the dashboard or in sales reports, to display sales performance for a specific channel using an animated bar.
+
+Located at `sssync_mobile_test/src/components/ChannelSalesBar.tsx`.
+
+## Purpose
+
+-   To provide a simple, visual representation of sales figures or performance for an individual sales channel (e.g., Shopify, Square, Clover).
+-   To add a dynamic and engaging element to data displays through animation.
+
+## Props
+
+-   **`channel` (Required)**: An object or identifier representing the sales channel. This prop would likely contain:
+    -   `name` (string): The name of the channel (e.g., "Shopify").
+    -   `sales` (number): The sales value to be represented by the bar's length.
+    -   `color` (string, optional): A specific color for this channel's bar.
+    -   Other relevant channel data.
+-   **`delay?: number` (Optional, defaults to `0`)**: A delay in milliseconds before the bar animation starts. This can be used to stagger animations when multiple bars are displayed.
+
+## Key Features & Logic
+
+-   **Bar Rendering**: Renders a horizontal or vertical bar.
+    -   The length (or height) of the bar is proportional to the `sales` value of the `channel` prop.
+    -   The color of the bar might be determined by the `channel.color` or a default color.
+-   **Animation**: 
+    -   The bar likely animates its length from zero to its target value when the component mounts or when the `sales` value changes.
+    -   Uses `react-native-reanimated` or the built-in `Animated` API for smooth animations.
+    -   The `delay` prop is used to stagger the start of the animation.
+-   **Labels**: May display the channel name and/or the sales value as text labels on or near the bar.
+
+## Implementation Notes
+
+-   The component would typically calculate the bar's width or height based on the `sales` prop, possibly normalizing it against a maximum expected sales value or the available space.
+-   It might use `Animated.View` from React Native and animated styles to achieve the growing bar effect.
+
+## Usage Example
+
+```tsx
+import ChannelSalesBar from '../components/ChannelSalesBar';
+import { View, Text } from 'react-native';
+
+const SalesDashboard = ({ salesData }) => {
+  // salesData might be an array like:
+  // [
+  //   { name: 'Shopify', sales: 1200, color: '#96BF48' },
+  //   { name: 'Square', sales: 850, color: '#4A90E2' },
+  // ]
+
+  return (
+    <View>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Channel Performance</Text>
+      {salesData.map((channel, index) => (
+        <ChannelSalesBar 
+          key={channel.name} 
+          channel={channel} 
+          delay={index * 100} // Stagger animation
+        />
+      ))}
+    </View>
+  );
+};
+```
+
+This component helps in making sales data more digestible and visually engaging at a glance. 

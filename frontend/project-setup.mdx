@@ -1,0 +1,120 @@
+---
+title: 'Frontend: Project Setup'
+description: 'Setting up your local development environment for the sssync React Native mobile application.'
+icon: 'download-cloud'
+---
+
+This guide will walk you through the steps to set up and run the sssync mobile application frontend (`sssync_mobile_test`) on your local machine.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+-   **Node.js**: We recommend using the latest LTS version. Check the project's `package.json` for any specific engine requirements.
+-   **npm** or **Yarn**: For managing project dependencies. The `package.json` in `sssync_mobile_test` can be used with either.
+-   **Git**: For cloning the repository.
+-   **Expo CLI**: The project uses Expo. Install it globally:
+    ```bash
+    npm install -g expo-cli
+    ```
+-   **Development Environment for React Native**:
+    -   For iOS development: macOS with Xcode installed.
+    -   For Android development: Android Studio with the Android SDK and emulator/device configured.
+    -   Refer to the official [React Native development environment setup guide](https://reactnative.dev/docs/environment-setup) for detailed instructions for your OS and target platform (iOS/Android). Choose the "React Native CLI Quickstart" tab, but note that we primarily use Expo's tools (`expo run:ios`, `expo run:android`).
+-   **Supabase Account (Optional but Recommended)**: The mobile app interacts with a Supabase backend. For local development, you'll need connection details for a development Supabase instance.
+-   **Watchman (Recommended for macOS users)**: A file watching service. Install via Homebrew: `brew install watchman`.
+
+## 1. Clone the Repository
+
+If you haven't already, clone the main project repository which includes `sssync_mobile_test`:
+
+```bash
+git clone <main_repository_url>
+cd <main_repository_url>/sssync_mobile_test
+```
+
+Replace `<main_repository_url>` with the actual URL of your project's Git repository.
+
+## 2. Install Dependencies
+
+Navigate to the `sssync_mobile_test` directory and install the project dependencies:
+
+<CodeGroup>
+```bash npm
+npm install
+```
+```bash yarn
+yarn install
+```
+</CodeGroup>
+
+## 3. Environment Configuration
+
+The mobile application will require environment variables to connect to the backend services, primarily Supabase. These are typically managed differently than in a Node.js backend (e.g., not always a direct `.env` file at the root, but could be loaded via a build process or a configuration file).
+
+Look for a configuration file (e.g., `src/config.ts`, `src/constants/env.ts`, or similar) or instructions from your team on how to set up:
+
+-   `SUPABASE_URL`: Your Supabase project URL.
+-   `SUPABASE_ANON_KEY`: Your Supabase project anonymous key.
+
+These might be embedded in a specific file or loaded at runtime. Consult existing project documentation or team members if unclear. For sensitive keys, ensure they are not committed directly into version control if the configuration method doesn't explicitly support secure handling (e.g., via build-time variables).
+
+## 4. Running the Application
+
+The `package.json` provides scripts to run the application:
+
+-   **Start the Metro Bundler (Development Server)**:
+    ```bash
+    npm start
+    # or
+    yarn start
+    ```
+    This will start the Expo development server and provide a QR code.
+
+-   **Run on iOS Simulator/Device**:
+    ```bash
+    npm run ios
+    # or
+    yarn run ios
+    ```
+    This will attempt to build and run the app on a connected iOS device or simulator. You might need to select the target from the list if multiple are available.
+
+-   **Run on Android Emulator/Device**:
+    ```bash
+    npm run android
+    # or
+    yarn run android
+    ```
+    This will attempt to build and run the app on a connected Android device or emulator.
+
+-   **Run in Web Browser (Limited Functionality)**:
+    ```bash
+    npm run web
+    # or
+    yarn run web
+    ```
+    Expo allows running a web version, but native functionalities might not be fully supported or behave differently.
+
+### Using the Expo Go App
+
+For a quicker development cycle without needing to build the native app immediately, you can use the **Expo Go** app on your physical iOS or Android device:
+
+1.  Install Expo Go from the App Store or Google Play Store.
+2.  Run `npm start` (or `yarn start`) in your project directory.
+3.  Scan the QR code displayed in the terminal using the Expo Go app.
+
+This is suitable for many UI changes and business logic development. However, if your app includes custom native code (beyond what Expo Go supports by default), you will need to use `expo run:ios` or `expo run:android` to create a development build.
+
+## 5. Backend Connection
+
+Ensure your sssync backend server (from the `sssync-bknd` project) is running and accessible from your mobile development environment. The mobile app will make API calls to this backend.
+
+## Next Steps
+
+With the mobile app running, you can:
+
+-   Start navigating through the app on your simulator/device.
+-   Explore the codebase, starting with `AppNavigator.tsx` and the screens in `src/screens/`.
+-   Begin developing new features or addressing issues.
+
+If you encounter problems, double-check your environment setup against the React Native and Expo documentation, verify Node/npm/yarn versions, and ensure all dependencies were installed correctly. Consult with your team for any project-specific troubleshooting tips. 

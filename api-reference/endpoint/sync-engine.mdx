@@ -1,0 +1,332 @@
+---
+title: 'Sync Engine Operations'
+openapiPath: '../openapi.json'
+---
+
+This section outlines the API endpoints that manage the synchronization engine, particularly the step-by-step process of initially connecting a new platform, scanning its data, mapping products, previewing changes, and finally activating the synchronization.
+
+All endpoints require Bearer Token authentication and share a common path prefix: `/sync/connections/{connectionId}/`, where `{connectionId}` is the UUID of the platform connection being configured.
+
+Common error responses for this section include:
+- `400 Bad Request`: Invalid request payload or parameters (e.g., malformed DTO).
+- `401 Unauthorized`: Authentication token is missing, invalid, or expired.
+- `404 Not Found`: The specified `connectionId` does not exist, or a required preceding step (like scanning before getting a summary) has not been completed.
+- `422 Unprocessable Entity`: The request was well-formed but could not be processed (e.g., business logic validation failure).
+- `500 Internal Server Error`: An unexpected error occurred on the server.
+
+## Start Initial Platform Scan
+
+Kicks off the process of scanning a newly added platform connection.
+
+**Method & Path:** `POST /sync/connections/{connectionId}/start-scan`
+
+**Purpose:**
+This is the first step after a user connects a new e-commerce platform (e.g., Shopify, Square). This asynchronous operation instructs the system to fetch an overview of the data on the external platform. This typically includes discovering products, variants, and locations, and gathering basic counts.
+The actual scan is performed by a background job.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection to scan.
+
+**Example Request:**
+
+Replace `{connectionId}` with the actual connection ID (e.g., `conn-uuid-xyz-789`).
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/start-scan" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `202 Accepted`: The scan job has been successfully queued.
+  The response body will contain the ID of the queued job:
+
+  **Example Success Response Body (202 Accepted):**
+  ```json
+  {
+    "jobId": "scan-job-uuid-abcdef12345"
+  }
+  ```
+
+- Refer to `openapi.json` for `401 Unauthorized` and `404 Not Found` error structures.
+
+```mdx
+---
+title: 'Start Initial Platform Scan'
+openapi: 'POST /sync/connections/{connectionId}/start-scan'
+---
+```
+
+## Get Scan Summary
+
+Retrieves a summary of what was found on the platform once the initial scan job is complete.
+
+**Method & Path:** `GET /sync/connections/{connectionId}/scan-summary`
+
+**Purpose:**
+After the background job triggered by `/start-scan` finishes, this endpoint provides a high-level summary of the data discovered on the external platform. This helps the user understand the scope of data (e.g., number of products, variants, collections, locations) before proceeding to map and sync.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection for which to retrieve the scan summary.
+
+**Example Request:**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/scan-summary" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: The scan summary was successfully retrieved.
+  The response body will conform to the `InitialScanResult` schema.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "countProducts": 1572,
+    "countVariants": 2340,
+    "countLocations": 3,
+    "analysisId": "analysis-uuid-optional-123"
+  }
+  ```
+  *(Note: `analysisId` is optional. Fields like `platformType`, `scanCompletedAt` from a previous example might be part of the database record but not necessarily in this specific API response schema in openapi.json).* 
+
+- `404 Not Found`: If the connection is not found or the scan summary is not yet available (e.g., scan job still pending or failed).
+
+Refer to `openapi.json` for the `InitialScanResult` schema definition and error responses.
+
+```mdx
+---
+title: 'Get Scan Summary'
+openapi: 'GET /sync/connections/{connectionId}/scan-summary'
+---
+```
+
+## Get Mapping Suggestions
+
+Provides intelligent suggestions for mapping products and variants from the external platform to existing canonical product data within sssync.
+
+**Method & Path:** `GET /sync/connections/{connectionId}/mapping-suggestions`
+
+**Purpose:**
+After a successful scan, this endpoint analyzes the discovered platform products and attempts to match them with existing products in the sssync system. Matches are typically based on SKU, barcode, or other identifiable attributes. For unmatched platform products, it may suggest creating new canonical products in sssync. These suggestions are presented to the user for review and confirmation.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection.
+
+**Example Request:**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/mapping-suggestions" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: Mapping suggestions were successfully retrieved.
+  The response body will be an array of `MappingSuggestion` objects.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  [
+    {
+      "platformProduct": {
+        "id": "shopify-prod-gid-111",
+        "sku": "TSHIRT-BLK-L",
+        "barcode": "123456789012",
+        "title": "Shopify Black T-Shirt - Large",
+        "price": "25.99",
+        "imageUrl": "https://cdn.shopify.com/image1.jpg"
+      },
+      "suggestedCanonicalVariant": {
+        "Id": "sssync-var-uuid-aaa",
+        "Sku": "TSHIRT-BLK-L",
+        "Title": "Our Black T-Shirt - L"
+      },
+      "matchType": "SKU",
+      "confidence": 0.95
+    },
+    {
+      "platformProduct": {
+        "id": "shopify-prod-gid-222",
+        "sku": "NEW-MUG-RED",
+        "title": "Shopify Red Coffee Mug",
+        "price": "12.50",
+        "imageUrl": "https://cdn.shopify.com/image2.jpg"
+      },
+      "suggestedCanonicalVariant": null,
+      "matchType": "NONE",
+      "confidence": 0
+    }
+    // ... more suggestions
+  ]
+  ```
+- `404 Not Found`: If the connection is not found or the scan was not completed successfully.
+
+Refer to `openapi.json` for `MappingSuggestion` and `PlatformProductData` schema definitions, and error responses.
+
+```mdx
+---
+title: 'Get Mapping Suggestions'
+openapi: 'GET /sync/connections/{connectionId}/mapping-suggestions'
+---
+```
+
+## Confirm Product Mappings
+
+Allows the client to submit the user's decisions on the mapping suggestions.
+
+**Method & Path:** `POST /sync/connections/{connectionId}/confirm-mappings`
+
+**Purpose:**
+After reviewing the suggestions from `/mapping-suggestions`, the user makes decisions on how each platform product should be handled. This endpoint takes these decisions (confirmations) and saves them. For each platform product, the user can choose to:
+- Link it to an existing sssync product/variant.
+- Instruct sssync to create a new canonical product/variant based on the platform data.
+- Choose to ignore the platform product for synchronization purposes.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection.
+*   **Request Body**: Should conform to the `ConfirmMappingsDto` schema. This DTO typically contains an array of `ConfirmedMatch` objects and optional `syncRules`.
+
+**Example Request Body (`ConfirmMappingsDto`):**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/confirm-mappings" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "confirmedMatches": [
+         {
+           "platformProductId": "shopify-prod-gid-111", 
+           "sssyncVariantId": "sssync-var-uuid-aaa",
+           "action": "link"
+         },
+         {
+           "platformProductId": "shopify-prod-gid-222",
+           "action": "create"
+         },
+         {
+           "platformProductId": "shopify-prod-gid-333",
+           "action": "ignore"
+         }
+       ],
+       "syncRules": {
+         "inventorySync": "two_way",
+         "priceSync": "sssync_to_platform"
+       }
+     }'
+```
+*(Note: `platformProductId` in `ConfirmedMatch` was `sourceId` in a previous version of DTO from controller. The OpenAPI schema uses `platformProductId`, `platformVariantId`, `sssyncVariantId`, and `action`. Adapting to the OpenAPI schema for `ConfirmedMatch`).*
+
+**Response:**
+- `200 OK`: The confirmed mappings were successfully saved.
+  The response body will indicate success:
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "success": true
+  }
+  ```
+- `400 Bad Request`: If the `ConfirmMappingsDto` is invalid (e.g., missing required fields, inconsistent data).
+
+Refer to `openapi.json` for `ConfirmMappingsDto` and `ConfirmedMatch` schema definitions, and error responses.
+
+```mdx
+---
+title: 'Confirm Product Mappings'
+openapi: 'POST /sync/connections/{connectionId}/confirm-mappings'
+---
+```
+
+## Get Sync Preview
+
+Generates a preview of the actions that will be performed during the actual initial synchronization, based on the confirmed mappings.
+
+**Method & Path:** `GET /sync/connections/{connectionId}/sync-preview`
+
+**Purpose:**
+This endpoint gives the user a final chance to review the expected outcomes before committing to the full initial sync. The preview details what data will be created in sssync (new products, new variants), what links will be established between platform products and sssync products, and potentially other changes.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection.
+
+**Example Request:**
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/sync-preview" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `200 OK`: The sync preview was successfully generated.
+  The response body will conform to the `SyncPreview` schema.
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "actions": [
+      {
+        "type": "CREATE_SSSYNC_PRODUCT_VARIANT",
+        "description": "Create new sssync product and variant for Shopify Product 'Shopify Red Coffee Mug' (ID: shopify-prod-gid-222)."
+      },
+      {
+        "type": "LINK_PLATFORM_VARIANT_TO_SSSYNC",
+        "description": "Link Shopify Product 'Shopify Black T-Shirt - Large' (ID: shopify-prod-gid-111) to sssync Variant 'Our Black T-Shirt - L' (ID: sssync-var-uuid-aaa)."
+      },
+      {
+        "type": "PULL_PRODUCT_DETAILS_FROM_PLATFORM",
+        "description": "Pull detailed product information for 2 items from Shopify."
+      }
+    ]
+    // Other preview details like counts might be included as per schema
+  }
+  ```
+- `404 Not Found`: If the connection is not found or mappings have not yet been confirmed.
+
+Refer to `openapi.json` for the `SyncPreview` schema definition and error responses.
+
+```mdx
+---
+title: 'Get Sync Preview'
+openapi: 'GET /sync/connections/{connectionId}/sync-preview'
+---
+```
+
+## Activate Initial Sync
+
+Queues the main initial synchronization job after all prerequisite steps are completed.
+
+**Method & Path:** `POST /sync/connections/{connectionId}/activate-sync`
+
+**Purpose:**
+This is the final step in the initial platform setup flow. Once the user is satisfied with the scan summary, product mappings, and the sync preview, calling this endpoint triggers the actual initial synchronization. A background job will then process the confirmed mappings, create new canonical products/variants in sssync as needed, establish links, and pull detailed product information from the external platform into sssync.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_JWT_TOKEN>`
+*   **Path Parameter**: `connectionId` (string, UUID, required): The ID of the platform connection for which to activate the initial sync.
+
+**Example Request:**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/sync/connections/conn-uuid-xyz-789/activate-sync" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+- `202 Accepted`: The initial synchronization job has been successfully queued.
+  The response body will contain the ID of the queued job:
+
+  **Example Success Response Body (202 Accepted):**
+  ```json
+  {
+    "jobId": "initial-sync-job-uuid-98765fedcba"
+  }
+  ```
+- `404 Not Found`: If the connection is not found or any prerequisite steps (scan, mapping confirmation, preview generation) are incomplete or have failed.
+
+Refer to `openapi.json` for details and error responses.
+
+```mdx
+---
+title: 'Activate Initial Sync'
+openapi: 'POST /sync/connections/{connectionId}/activate-sync'
+---
+``` 

@@ -1,0 +1,102 @@
+---
+title: 'Screen: Authentication'
+description: 'Documentation for the AuthScreen, responsible for user login and registration.'
+icon: 'key'
+---
+
+The `AuthScreen` provides the primary interface for user authentication, allowing users to sign in to their existing accounts or navigate to the account creation process.
+
+Located at `sssync_mobile_test/src/screens/AuthScreen.tsx`.
+
+## Key Functionalities
+
+-   **User Login**: Allows users to log in using their email and password.
+-   **User Sign Up**: Allows new users to create an account with their name, email, and password.
+-   **Navigation to Sign Up/Log In**: Toggles between login and sign-up forms.
+-   **Password Recovery**: Includes functionality to initiate a password recovery process (e.g., "Forgot Password?").
+
+## Props (`AuthScreenProps`)
+
+-   **`navigation`**: The standard React Navigation prop used for navigating to other screens (e.g., `TabNavigator` upon successful login, or `CreateAccountScreen` for new users - though navigation is often handled by the `AuthContext` side effects).
+
+## State Management
+
+The screen manages local state for:
+
+-   User input fields: `email`, `password`, `firstName`, `lastName`.
+-   Loading indicators: `loading` (to provide feedback during authentication attempts).
+-   UI toggles: `isLogin` (to switch between login and sign-up forms).
+
+## Major Functions & Logic
+
+-   **`handleAuth()`**: This is the primary function triggered when the user attempts to log in or sign up.
+    -   Performs basic input validation (e.g., checking if name fields are filled for sign-up).
+    -   If `isLogin` is true, calls `supabase.auth.signInWithPassword(...)`.
+    -   If `isLogin` is false, calls `supabase.auth.signUp(...)` with email, password, and user metadata (firstName, lastName).
+    -   Handles responses: 
+        -   On successful login/signup where a session is established, it calls `authContext.signIn(session.access_token)`. The `AppNavigator` typically observes `AuthContext` changes to automatically navigate to the main app.
+        -   On error: Displays an `Alert` with the error message.
+    -   Manages the `loading` state.
+
+-   **`handleForgotPassword()`**: Initiates the password recovery process.
+    -   Prompts the user for their email address if not already entered.
+    -   Calls `supabase.auth.resetPasswordForEmail(...)`.
+    -   Provides feedback via an `Alert`.
+
+## User Interactions
+
+-   Entering email, password, first name, and last name.
+-   Tapping the "Log In" or "Sign Up" button.
+-   Tapping links to switch between "Sign Up" and "Log In" forms.
+-   Tapping "Forgot Password?".
+
+## Error Handling & Feedback
+
+-   Displays `Alert` pop-ups for errors (e.g., invalid credentials, user already exists, network issues).
+-   Uses a loading indicator within the primary action `Button` while authentication requests are in progress.
+
+## Usage Example
+
+`AuthScreen` is a key part of the authentication flow, usually presented before the main application content if the user is not authenticated. It's typically part of an "Auth Stack" in navigation.
+
+```tsx
+// Example: Integrating AuthScreen into an AuthStack navigator
+// In sssync_mobile_test/src/navigation/AppNavigator.tsx or similar
+
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AuthScreen from '../screens/AuthScreen';
+import InitialScreen from '../screens/InitialScreen';
+import OnboardingSlides from '../screens/OnboardingSlides';
+// import CreateAccountScreen from '../screens/CreateAccountScreen'; // Might be part of AppStack post-auth
+
+// Assuming AuthStackParamList is defined as in your AppNavigator.tsx
+type AuthStackParamList = {
+  InitialScreen: undefined;
+  OnboardingSlides: undefined;
+  Auth: undefined;
+};
+
+const Stack = createNativeStackNavigator<AuthStackParamList>();
+
+const AuthStack = ({ isFirstLaunch, devForceOnboarding }: { isFirstLaunch: boolean, devForceOnboarding: boolean }) => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    {(isFirstLaunch || devForceOnboarding) && (
+      <Stack.Screen name="OnboardingSlides" component={OnboardingSlides} />
+    )}
+    <Stack.Screen name="Auth" component={AuthScreen} />
+    {/* Other screens like a dedicated ForgotPasswordScreen could be here */}
+  </Stack.Navigator>
+);
+
+// This AuthStack is then used in a root navigator conditionally based on auth state.
+// For example, in AppNavigator.tsx:
+// ...
+// {session ? (
+//   <RootStack.Screen name="AppStack" component={AppStack} initialParams={{ initialScreenName }} />
+// ) : (
+//   <RootStack.Screen name="AuthStack" component={AuthStackComponent} />
+// )}
+// ...
+```
+
+This screen is critical for user access, interacting closely with Supabase for authentication and the `AuthContext` to manage and propagate the session state across the application, which in turn drives navigation changes in `AppNavigator`. 

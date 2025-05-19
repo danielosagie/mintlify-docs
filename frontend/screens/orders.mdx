@@ -1,0 +1,83 @@
+---
+title: 'Screen: Orders'
+description: 'Documentation for the OrdersScreen, responsible for displaying and filtering a list of customer orders using mock data.'
+icon: 'receipt'
+---
+
+The `OrdersScreen` is designed to display a list of customer orders. It includes features for searching, filtering by platform and status, and uses mock data for its current implementation.
+
+Located at `sssync_mobile_test/src/screens/OrdersScreen.tsx`.
+
+**Note:** This screen currently uses an extended version of `mockOrders` from `../data/mockData.ts` for its data source.
+
+## Key Functionalities
+
+-   **Display Orders List**: Shows a list of orders, with each order rendered by the `OrderListItem` component.
+    -   The list displays mock data, extended for a fuller view.
+    -   Includes a static stats section at the top showing "Total Orders", "Total Revenue", and "Pending" counts.
+-   **Search**: A search bar allows users to filter orders by order ID, customer name, platform, or status.
+-   **Filtering**:
+    -   **By Platform**: Displays a horizontal scrollable list of platform tabs (dynamically generated from unique platforms in the mock data, plus "All"). Selecting a platform filters the list.
+    -   **By Status**: Displays a horizontal scrollable list of status chips (dynamically generated from unique statuses in the mock data, plus "All"). Selecting a status filters the list.
+-   **Pagination (UI Only)**: Includes UI elements for pagination ("Page 1 of 4", previous/next buttons), but the logic for actual pagination is not implemented with the mock data.
+-   **Empty State**: If no orders match the filters, an empty state message is displayed with an icon.
+
+## Props
+
+-   The `OrdersScreen` itself does not take explicit navigation props for its primary functionality but would be part of a larger navigation structure (e.g., Tab Navigator).
+
+## State Management
+
+-   `selectedPlatform`: Stores the currently selected platform filter (e.g., "All", "Shopify").
+-   `selectedStatus`: Stores the currently selected status filter (e.g., "All", "Delivered").
+-   `searchQuery`: Stores the current text from the search input.
+
+## Major Functions & Logic
+
+-   **Filtering Logic**: The `filteredOrders` variable is derived by applying `selectedPlatform`, `selectedStatus`, and `searchQuery` to the `extendedOrders` (mock data).
+-   **Dynamic Filters**: `platforms` and `statuses` arrays are dynamically generated from the unique values present in the `extendedOrders` mock data, ensuring filters are relevant to the dataset.
+-   The screen uses the `OrderListItem` component (presumably from `../components/OrderListItem.tsx`) to render each order.
+
+## Usage Example
+
+`OrdersScreen` is typically used as a main screen within a Tab Navigator, allowing users to easily access their order history.
+
+```tsx
+// Example in a Tab Navigator (e.g., AppNavigator.tsx)
+import OrdersScreen from './path/to/OrdersScreen';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Or your icon library
+// ... other imports
+
+const Tab = createBottomTabNavigator(); // Or your specific tab navigator
+
+function MainAppTabs() {
+  return (
+    <Tab.Navigator>
+      {/* ... other tabs like Dashboard, Inventory ... */}
+      <Tab.Screen
+        name="OrdersTab" // Name of the route
+        component={OrdersScreen}
+        options={{
+          title: 'Orders', // Title displayed in the tab bar
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="cart-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      {/* ... other tabs ... */}
+    </Tab.Navigator>
+  );
+}
+
+export default MainAppTabs;
+```
+
+## UI Components
+
+-   Uses a `map` function to render `OrderListItem` components within an `Animated.View` for the main list (effectively a custom list rendering, not a `FlatList` for the primary order items, though `FlatList` might be used internally by `OrderListItem` if it were more complex).
+-   Custom components: `Card`, `OrderListItem`.
+-   Standard React Native components: `View`, `Text`, `TextInput`, `TouchableOpacity`, `ScrollView`.
+-   Icons from `react-native-vector-icons/MaterialCommunityIcons`.
+-   Animated views from `react-native-reanimated`.
+
+This screen provides users with essential visibility into their sales activities across all connected platforms. Clear presentation of order information and efficient data handling are important for its effectiveness. 

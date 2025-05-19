@@ -1,0 +1,200 @@
+---
+title: 'Product AI Tools'
+openapiPath: '../openapi.json'
+---
+
+This section details endpoints that leverage AI for product creation and enrichment. These tools help in analyzing product images and generating detailed product information.
+
+All endpoints in this section require authentication (JWT Bearer token) and are subject to rate limiting and feature usage checks based on the user's subscription plan.
+
+## Analyze Product Images
+
+This endpoint is the starting point for AI-assisted product listing. It takes one or more image URIs, performs image recognition (e.g., through Google Lens integration via SerpApi), creates a draft `Product` and `ProductVariant` in the sssync system, and stores the initial analysis results (like visual matches from the web or text extracted from images).
+
+This allows the user to then review the visual matches and proceed to generate more detailed product information using the `/products/generate-details` endpoint.
+
+**Method & Path:** `POST /products/analyze`
+
+**Expected Headers:**
+*   `Authorization`: `Bearer <YOUR_JWT_TOKEN>`
+
+**Request Body (`AnalyzeImagesDto`):**
+*   `imageUris` (Array of strings, required): An array of publicly accessible URLs pointing to the product images. The first image is typically treated as the primary image for analysis.
+*   `selectedPlatforms` (Array of strings, required): An array of platform keys (e.g., `["shopify", "amazon"]`) indicating for which platforms the AI should eventually generate tailored details. This might influence the type of analysis performed.
+
+**Example Request:**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products/analyze" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "imageUris": [
+         "https://example.com/image1.jpg", 
+         "https://example.com/image2.png"
+       ],
+       "selectedPlatforms": ["shopify", "ebay"]
+     }'
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 200 OK):** An object containing:
+    *   `product`: A `SimpleProduct` object representing the newly created draft product.
+    *   `variant`: A `SimpleProductVariant` object for the newly created draft variant associated with the product.
+    *   `analysis` (Optional): A `SimpleAiGeneratedContent` object if any initial structured analysis (like visual matches) was saved.
+
+    **Example Success Response Body (200 OK):**
+    ```json
+    {
+      "product": {
+        "Id": "prod-uuid-123",
+        "UserId": "user-uuid-abc",
+        "Title": "Draft Product from Image Analysis",
+        "Description": null,
+        "IsArchived": false
+      },
+      "variant": {
+        "Id": "var-uuid-456",
+        "ProductId": "prod-uuid-123",
+        "Sku": "TEMP-SKU-XYZ",
+        "Title": "Draft Variant",
+        "Price": 0,
+        "Barcode": null,
+        "ImageId": null 
+      },
+      "analysis": {
+        "Id": "analysis-uuid-789",
+        "ProductId": "prod-uuid-123",
+        "ContentType": "visual_matches_serpapi",
+        "SourceApi": "SerpApi/GoogleLens",
+        "GeneratedText": "{\"visual_matches\":[{\"title\":\"Similar Blue Widget\",\"link\":\"...\"}]}",
+        "Metadata": {
+            "serpapi_search_id": "search-id-from-serpapi"
+        },
+        "IsActive": true,
+        "CreatedAt": "2024-07-01T12:00:00Z",
+        "UpdatedAt": "2024-07-01T12:00:00Z"
+      }
+    }
+    ```
+    *Refer to `openapi.json` for `SimpleProduct`, `SimpleProductVariant`, and `SimpleAiGeneratedContent` schema definitions if available, or backend service definitions.* 
+
+*   **On Error (HTTP 400 Bad Request):** If `imageUris` is empty or `selectedPlatforms` is missing.
+    **Example Error Response Body (400 Bad Request):**
+    ```json
+    {
+      "statusCode": 400,
+      "message": [
+        "imageUris should not be empty",
+        "selectedPlatforms should not be empty"
+      ],
+      "error": "Bad Request"
+    }
+    ```
+*   **On Error (HTTP 401 Unauthorized):** Invalid or missing JWT.
+*   **On Error (HTTP 402 Payment Required / 429 Too Many Requests):** If the user exceeds their plan's AI scan limits or hits rate limits.
+    **Example Error Response Body (402 Payment Required):**
+    ```json
+    {
+        "statusCode": 402,
+        "message": "AI scan limit exceeded for your current plan.",
+        "error": "Payment Required"
+    }
+    ```
+*   **On Error (HTTP 500 Internal Server Error):** For unexpected issues during analysis or database operations.
+
+```mdx
+---
+title: 'Analyze Product Images'
+openapi: 'POST /products/analyze'
+---
+```
+
+## Generate AI Product Details
+
+After a product image has been analyzed and a draft product/variant exists (via the `/products/analyze` endpoint), this endpoint generates rich product details using AI. It takes the `productId`, `variantId`, image URIs, the index of the cover image, target platforms, and an optional `selectedMatch` (a visual match chosen by the user from the analysis step) to guide the AI in generating relevant titles, descriptions, tags, pricing suggestions, and other platform-specific attributes.
+
+**Method & Path:** `POST /products/generate-details`
+
+**Expected Headers:**
+*   `Authorization`: `Bearer <YOUR_JWT_TOKEN>`
+
+**Request Body (`GenerateDetailsDto`):**
+*   `productId` (string, UUID, required): The ID of the draft product created by the `/analyze` endpoint.
+*   `variantId` (string, UUID, required): The ID of the draft variant created by the `/analyze` endpoint.
+*   `imageUris` (Array of strings, required): Publicly accessible URLs of product images. Essential for the AI to "see" the product.
+*   `coverImageIndex` (integer, required): The index (0-based) in `imageUris` that represents the main/cover image.
+*   `selectedPlatforms` (Array of strings, required): Platform keys (e.g., `["shopify", "ebay"]`) for which the AI should generate tailored details.
+*   `selectedMatch` (Object, optional): If the user selected a specific visual match from the `/analyze` step, providing its details here (`position`, `title`, `link`, `source`) can significantly improve the relevance of AI-generated content.
+
+**Example Request:**
+```bash
+curl -X POST "https://YOUR_API_DOMAIN/products/generate-details" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "productId": "prod-uuid-123",
+       "variantId": "var-uuid-456",
+       "imageUris": [
+         "https://example.com/image1.jpg", 
+         "https://example.com/image2.png"
+       ],
+       "coverImageIndex": 0,
+       "selectedPlatforms": ["shopify", "ebay"],
+       "selectedMatch": {
+         "position": 1,
+         "title": "Very Similar Blue Widget on ExampleRetailer",
+         "link": "https://exampleretailer.com/blue-widget",
+         "source": "ExampleRetailer.com"
+       }
+     }'
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 200 OK):** An object containing:
+    *   `generatedDetails` (Object or null): An object where keys are platform names (e.g., `shopify`, `amazon`) and values are `GeneratedPlatformSpecificDetails` objects containing AI-generated titles, descriptions, tags, etc. Returns `null` if AI generation fails or produces no usable content.
+
+    **Example Success Response Body (200 OK):**
+    ```json
+    {
+      "generatedDetails": {
+        "shopify": {
+          "title": "Amazing Blue Widget - Special Edition",
+          "description": "<p>This <strong>Amazing Blue Widget</strong> is perfect for all your widget needs. Crafted with care and designed for durability.</p><ul><li>Feature 1</li><li>Feature 2</li></ul>",
+          "price": 29.99,
+          "compareAtPrice": 39.99,
+          "categorySuggestion": "Electronics > Gadgets",
+          "tags": ["blue", "widget", "special edition", "gadget"],
+          "vendor": "WidgetMasters Inc.",
+          "productType": "Cool Gadgets",
+          "status": "draft"
+        },
+        "ebay": {
+          "title": "Blue Widget - High Quality, Fast Ship!",
+          "description": "Get your hands on this fantastic Blue Widget. Limited stock available. Great for gifts or personal use. Fast shipping from USA.",
+          "price": 31.50,
+          "categorySuggestion": "Collectibles > Widgets",
+          "tags": "blue widget, collectible, tech gadget",
+          "condition": "New",
+          "listingFormat": "FixedPrice",
+          "duration": "GTC",
+          "itemSpecifics": {
+            "Color": "Blue",
+            "Material": "Durable Plastic"
+          }
+        }
+      }
+    }
+    ```
+    *The structure of `GeneratedPlatformSpecificDetails` will vary based on the platform and the AI's output. Refer to backend service definitions for expected fields.* 
+
+*   **On Error (HTTP 400 Bad Request):** If required fields are missing (e.g., `productId`, `variantId`, `imageUris`) or if `coverImageIndex` is invalid.
+*   **On Error (HTTP 401 Unauthorized):** Invalid or missing JWT.
+*   **On Error (HTTP 402 Payment Required / 429 Too Many Requests):** If AI usage limits are exceeded.
+*   **On Error (HTTP 500 Internal Server Error):** If the AI service fails or there are other backend issues.
+
+```mdx
+---
+title: 'Generate AI Product Details'
+openapi: 'POST /products/generate-details'
+---
+``` 

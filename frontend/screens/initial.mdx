@@ -1,0 +1,80 @@
+---
+title: 'Screen: Initial'
+description: 'Documentation for the InitialScreen, the first landing screen of the application.'
+icon: 'play-circle'
+---
+
+The `InitialScreen` serves as the very first visual entry point when the sssync mobile application starts, before any authentication or onboarding checks are performed by the main navigator.
+
+Located at `sssync_mobile_test/src/screens/InitialScreen.tsx`.
+
+## Key Functionalities
+
+-   **Welcome Display**: Shows a branded welcome message and introductory text.
+    -   It features the app logo and a tagline: "Sync Everywhere, List Faster, Work Together."
+    -   Subheading: "Make your inventory work for you."
+-   **Font Loading**: Uses `expo-font` to load custom fonts (`PlusJakartaSans_500Medium`, `PlusJakartaSans_700Bold`, `PlusJakartaSans_800ExtraBold`). It displays the `AnimatedGradientBackground` while fonts are loading.
+-   **Navigation to Onboarding**: Contains a "Continue" button that navigates the user to the `OnboardingSlides` screen.
+-   **Terms & Privacy Link**: Displays text indicating agreement to Terms & Privacy Policy upon continuing, though an actual link might not be implemented directly on this button.
+
+## Props (`Props`)
+
+-   **`navigation`**: The React Navigation prop, used here specifically to navigate to `OnboardingSlides`.
+
+## State Management
+
+-   **`fontsLoaded`**: A boolean state from `useFonts` to determine if the custom fonts have been loaded. The main content is only rendered after fonts are loaded.
+
+## Major Functions & Logic
+
+-   An empty `useEffect` hook is present but not currently used for any specific logic on mount/unmount.
+-   The primary logic is the conditional rendering based on `fontsLoaded` and the `onPress` handler of the "Continue" button which calls `navigation.navigate('OnboardingSlides')`.
+
+## User Interactions
+
+-   Viewing the welcome content.
+-   Tapping the "Continue" button to proceed to the onboarding slides.
+
+## Relationship with `AppNavigator.tsx`
+
+-   The `InitialScreen` is typically the first screen in the `AuthStack` within `AppNavigator.tsx` if `isFirstLaunch` (or a similar flag like `devForceInitialScreen`) is true, or if no other initial route takes precedence before authentication checks.
+-   The actual complex bootstrapping logic (checking authentication state, previous onboarding completion) is handled in `AppNavigator.tsx` by functions like `bootstrapAsync` and `checkOnboardingAndNavigate`. `InitialScreen` primarily serves as a static entry point before those checks direct the user further.
+
+## Usage Example
+
+`InitialScreen` is typically defined as a route within the `AuthStack` in the main navigation setup.
+
+```tsx
+// Example: Integrating InitialScreen into an AuthStack navigator
+// In sssync_mobile_test/src/navigation/AppNavigator.tsx or similar
+
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import InitialScreen from '../screens/InitialScreen';
+import OnboardingSlides from '../screens/OnboardingSlides';
+import AuthScreen from '../screens/AuthScreen';
+
+export type AuthStackParamList = {
+  InitialScreen: undefined;
+  OnboardingSlides: undefined;
+  Auth: undefined;
+};
+
+const Stack = createNativeStackNavigator<AuthStackParamList>();
+
+// This simplified AuthStack always shows InitialScreen first in this example
+// In the actual AppNavigator, its presentation might be conditional (e.g., only on first launch)
+const AuthStackComponent = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="InitialScreen" component={InitialScreen} />
+    <Stack.Screen name="OnboardingSlides" component={OnboardingSlides} />
+    <Stack.Screen name="Auth" component={AuthScreen} />
+  </Stack.Navigator>
+);
+
+// This AuthStackComponent would then be used in a RootNavigator based on session state:
+// if (!session) { // If no active session
+//   return <RootStack.Screen name="AuthStack" component={AuthStackComponent} />;
+// }
+```
+
+This screen provides the initial brand presentation and funnels users into the onboarding sequence. 

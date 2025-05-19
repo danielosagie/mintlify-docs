@@ -1,0 +1,89 @@
+---
+title: 'User Management'
+openapiPath: '../openapi.json'
+---
+
+This section covers API endpoints related to user management, such as updating user profiles, subscriptions, or other user-specific settings.
+
+## Update User Subscription Tier
+
+Allows an administrator (or an appropriately authorized user/service) to change the subscription tier for a given user.
+
+**Method & Path:** `PATCH /users/{userId}/subscription`
+
+**Purpose:**
+To modify the subscription plan associated with a specific user account. This is typically an administrative action used to upgrade, downgrade, or otherwise change a user's access level based on their subscription status. The endpoint requires the `userId` of the target user and the `subscriptionTierId` of the new tier.
+
+**Important Security Note:** This endpoint **MUST** be protected by a robust authorization mechanism (e.g., an Admin Guard, or role-based access control that verifies the caller has administrative privileges). Exposing this without proper security could lead to unauthorized changes in user subscriptions.
+
+**Request:**
+*   **Headers:** `Authorization: Bearer <YOUR_ADMIN_JWT_TOKEN>`
+*   **Path Parameter**: `userId` (string, UUID, required): The unique identifier of the user whose subscription tier is to be updated.
+*   **Request Body**: The request body must conform to the `UpdateSubscriptionDto` schema, containing the new subscription tier ID.
+
+**Example Request:**
+
+Replace `{userId}` with the actual user ID (e.g., `user-uuid-target-123`).
+```bash
+curl -X PATCH "https://YOUR_API_DOMAIN/users/user-uuid-target-123/subscription" \
+     -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "subscriptionTierId": "tier-uuid-premium-789"
+     }'
+```
+
+**Response:**
+- `204 No Content`: The user's subscription tier was successfully updated. No content is returned in the response body.
+
+- `400 Bad Request`: The request body is invalid (e.g., `subscriptionTierId` is missing or not a valid UUID). Refer to `#/components/responses/BadRequest` in `openapi.json`.
+    **Example Error Response Body (400 Bad Request):**
+    ```json
+    {
+      "statusCode": 400,
+      "message": [
+        "subscriptionTierId must be a UUID"
+      ],
+      "error": "Bad Request"
+    }
+    ```
+
+- `401 Unauthorized`: Authentication token is missing, invalid, or expired. Refer to `#/components/responses/Unauthorized` in `openapi.json`.
+    **Example Error Response Body (401 Unauthorized):**
+    ```json
+    {
+      "statusCode": 401,
+      "message": "Unauthorized"
+    }
+    ```
+
+- `403 Forbidden`: The authenticated user/service does not have the necessary permissions to update another user's subscription (e.g., not an administrator). The response body may conform to `#/components/schemas/Error`.
+    **Example Error Response Body (403 Forbidden):**
+    ```json
+    {
+      "statusCode": 403,
+      "message": "Forbidden resource",
+      "error": "Forbidden"
+    }
+    ```
+
+- `404 Not Found`: The specified `userId` does not exist, or the `subscriptionTierId` does not correspond to a valid tier. The response body may conform to `#/components/schemas/Error`.
+    **Example Error Response Body (404 Not Found - User):**
+    ```json
+    {
+      "statusCode": 404,
+      "message": "User with ID user-uuid-target-123 not found",
+      "error": "Not Found"
+    }
+    ```
+
+- `500 Internal Server Error`: An unexpected error occurred on the server.
+
+Refer to `openapi.json` for detailed schema definitions for `UpdateSubscriptionDto` and error responses.
+
+```mdx
+---
+title: 'Update User Subscription Tier'
+openapi: 'PATCH /users/{userId}/subscription'
+---
+``` 

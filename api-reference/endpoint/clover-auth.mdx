@@ -1,0 +1,144 @@
+---
+title: 'Clover Authentication'
+openapiPath: '../openapi.json'
+---
+
+This section describes the API endpoints for authenticating with Clover's services. This involves initiating the OAuth 2.0 flow and handling the callback from Clover after user authorization.
+
+## Clover Login
+
+Redirects the user to Clover to authorize the application. This is the first step in the Clover OAuth 2.0 flow for connecting a merchant's Clover account to sssync.
+
+**Method & Path:** `GET /auth/clover/login`
+
+**Expected Query Parameters:**
+*   `userId` (string, required): Your system's unique identifier for the user. This is embedded in the `state` parameter sent to Clover and used later to associate the Clover connection with the correct sssync user account.
+*   `finalRedirectUri` (string, optional): A URL where the user should be redirected *after* the entire Clover OAuth flow is successfully completed (including the callback to `/auth/clover/oauth-callback`). If not provided, a default URI is used.
+
+**Example Request:**
+
+A client application would typically redirect the user's browser to this URL. Here's how you might construct the URL:
+
+```
+https://YOUR_API_DOMAIN/auth/clover/login?userId=user-abc-123&finalRedirectUri=https%3A%2F%2Fyourapp.com%2Fclover-oauth-return
+```
+
+If you were to simulate this with `curl` (note: `-v` shows headers, the actual response is a redirect):
+
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/auth/clover/login?userId=user-abc-123&finalRedirectUri=https%3A%2F%2Fyourapp.com%2Fclover-oauth-return" -v
+```
+
+**What you get back (Response):**
+
+*   **On Success (HTTP 302 Found):** The browser (or client) is redirected to Clover's authorization server. The `Location` header of this redirect will contain the Clover URL. The merchant will log in to their Clover account and approve the requested permissions.
+
+    **Example Success Response Headers:**
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://www.clover.com/oauth/authorize?client_id=YOUR_CLOVER_APP_ID&redirect_uri=https%3A%2F%2FYOUR_API_DOMAIN%2Fauth%2Fclover%2Foauth-callback&response_type=code&state=GENERATED_STATE_JWT
+    X-Content-Type-Options: nosniff
+    X-XSS-Protection: 1; mode=block
+    Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+    Pragma: no-cache
+    Expires: 0
+    Strict-Transport-Security: max-age=31536000 ; includeSubDomains
+    X-Frame-Options: DENY
+    Date: Mon, 01 Jul 2024 12:00:00 GMT
+    Connection: keep-alive
+    ```
+
+*   **On Error (HTTP 400 Bad Request / HTTP 302 Found with error params):** If `userId` is missing, a 400 error might occur. If there are backend configuration issues for Clover integration, the system might redirect to an error page or the `finalRedirectUri` with error details.
+
+    **Example Error Response (400 Bad Request if `userId` is missing):**
+    ```http
+    HTTP/1.1 400 Bad Request
+    Content-Type: application/json; charset=utf-8
+    Content-Length: 60
+    Date: Mon, 01 Jul 2024 12:00:01 GMT
+
+    {
+      "statusCode": 400,
+      "message": "Missing required query parameter: userId",
+      "error": "Bad Request"
+    }
+    ```
+    **Example Error Redirect (to `finalRedirectUri`):**
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://yourapp.com/clover-oauth-return?connection=clover&status=error&message=Configuration+issue
+    ```
+
+```mdx
+---
+title: 'Clover Login'
+openapi: 'GET /auth/clover/login'
+---
+```
+
+## Clover OAuth Callback
+
+This endpoint is the designated redirect URI that Clover calls after the user has granted or denied permission to your application. It receives an authorization `code` (on success) or error details from Clover.
+
+**Method & Path:** `GET /auth/clover/oauth-callback`
+
+**Expected Query Parameters (from Clover):**
+*   `code` (string, optional): The authorization code from Clover if the user approved the request. This code is then exchanged for an access token.
+*   `state` (string, required): The unique state string that your application initially sent to Clover during the `/auth/clover/login` step. This is crucial for validating the request's origin (CSRF protection) and retrieving `userId` and `finalRedirectUri`.
+*   `merchant_id` (string, optional): The Clover merchant ID, provided by Clover on successful authorization.
+*   `client_id` (string, optional): Your application's Clover client ID, echoed back by Clover.
+*   If the user denies authorization or an error occurs on Clover's side, `code` and `merchant_id` might be absent, and error-related parameters might be present instead (e.g., `error`, `error_description`).
+
+**Example Incoming Request from Clover (URL called by Clover):**
+
+```
+https://YOUR_API_DOMAIN/auth/clover/oauth-callback?code=CLOVER_AUTHORIZATION_CODE&state=GENERATED_STATE_JWT&merchant_id=CLOVER_MERCHANT_ID&client_id=YOUR_CLOVER_APP_ID
+```
+Or, in case of user denial:
+```
+https://YOUR_API_DOMAIN/auth/clover/oauth-callback?error=access_denied&error_description=The+user+denied+your+request&state=GENERATED_STATE_JWT
+```
+
+**What you get back (Response):**
+
+*   **On Success (HTTP 302 Found):** The browser is redirected to the `finalRedirectUri` (originally passed to `/auth/clover/login` and stored in the state). This URI will usually include query parameters indicating success.
+
+    **Example Success Response Headers (Redirect to `finalRedirectUri`):**
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://yourapp.com/clover-oauth-return?connection=clover&status=success&userId=user-abc-123
+    Date: Mon, 01 Jul 2024 12:00:02 GMT
+    Connection: keep-alive
+    ```
+
+*   **On Error (HTTP 302 Found with error params, or HTTP 400/401/500):**
+    *   If the `state` is invalid/expired, or if Clover returns an error (e.g., user denied access), the user is redirected to the `finalRedirectUri` (or a default error page) with query parameters detailing the error.
+    *   If essential parameters like `state` are missing from Clover's callback, an HTTP 400 Bad Request might be returned.
+
+    **Example Error Response Headers (Redirect to `finalRedirectUri` on State Mismatch):**
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://yourapp.com/clover-oauth-return?connection=clover&status=error&message=Invalid+state+or+OAuth+flow+failed
+    Date: Mon, 01 Jul 2024 12:00:03 GMT
+    Connection: keep-alive
+    ```
+    **Example Error Response (400 Bad Request if `state` is missing):**
+    ```http
+    HTTP/1.1 400 Bad Request
+    Content-Type: application/json; charset=utf-8
+    Content-Length: 55
+    Date: Mon, 01 Jul 2024 12:00:04 GMT
+
+    {
+      "statusCode": 400,
+      "message": "Missing required query parameter: state",
+      "error": "Bad Request"
+    }
+    ```
+
+```mdx
+---
+title: 'Clover OAuth Callback'
+openapi: 'GET /auth/clover/oauth-callback'
+---
+``` 

@@ -1,0 +1,59 @@
+---
+title: 'Project Overview: sssync.app'
+description: 'Understanding the purpose, goals, and core features of the sssync.app backend.'
+icon: 'lightbulb'
+---
+
+This document provides a high-level overview of the sssync.app project, extracted from the Product Requirements Document (PRD). Its purpose is to help developers understand the context and goals of the application they are working on.
+
+## 1. What is sssync.app?
+
+**sssync.app** is a multi-channel e-commerce platform designed to simplify inventory management by syncing product data across multiple online marketplaces (e.g., Shopify, Square, Clover, etc.).
+
+The primary goal is to empower both new and established sellers to scale their online operations with minimal friction and maximum efficiency. Beyond core synchronization, the platform aims to unlock new revenue streams through features like an integrated inter-seller marketplace (though the backend initially focuses on the sync engine and core product management).
+
+## 2. The Problem We Solve
+
+Developing sssync.app addresses several key pain points for e-commerce sellers:
+
+-   **Fragmented Inventory Management:** Sellers often struggle with manually updating inventory across numerous platforms. This is error-prone, leading to issues like overselling, stock discrepancies, and significant time investment.
+-   **Operational Complexity & Cost:** Existing multi-channel solutions can be expensive, overly complex, or not well-suited for small-to-medium-sized sellers.
+-   **Missed Revenue Opportunities:** Without a centralized system, sellers find it difficult to expand to new sales channels or leverage new business models like inter-seller marketplaces efficiently.
+
+## 3. Core Backend Features
+
+While the PRD outlines a broad set of features including UI/UX and mobile aspects, the backend development primarily focuses on enabling:
+
+### Inventory Synchronization
+
+-   **Multi-Channel Connectivity:** Building robust API integrations to connect with target marketplaces (Shopify, Clover, Square initially, with others planned).
+-   **Data Synchronization Engine:**
+    -   Real-time or near real-time updates of product information (details, price, inventory levels) between sssync and connected platforms.
+    -   Mechanisms for handling initial data scans from platforms.
+    -   Processing incoming webhooks for events like product updates, new orders (which affect inventory), etc.
+    -   Ensuring data consistency and integrity across all channels.
+-   **Order Data Ingestion (related to Inventory):** While not a full order management system initially, the backend needs to process order information (primarily from webhooks) to accurately update inventory levels.
+-   **Error Handling & Logging:** Comprehensive error detection, notification, and logging for all sync operations.
+
+### Product Management Core
+
+-   **Canonical Product Model:** Maintaining a central, platform-agnostic representation of products and their variants within sssync.
+-   **Product Creation & Modification:** APIs to create, read, update, and manage these canonical products, which then form the basis for synchronization.
+
+### AI & Automation (Future Enhancements - Backend Support)
+
+The backend will need to support future AI-driven features by:
+
+-   Providing data access for AI models (e.g., product data for matching algorithms).
+-   Integrating with AI services for tasks like product detail generation or image analysis.
+-   Storing and managing AI-generated content associated with products.
+
+## 4. High-Level Technical Approach (Backend)
+
+-   **Technology Stack:** Primarily NestJS (Node.js framework) with TypeScript.
+-   **Database:** Supabase (PostgreSQL) for scalable, relational data storage.
+-   **API Integrations:** Developing and maintaining individual adapters/clients for each supported e-commerce platform's API.
+-   **Asynchronous Operations:** Utilizing queues (e.g., BullMQ) for handling background tasks like large sync operations or webhook processing to ensure API responsiveness.
+-   **Security:** Implementing robust authentication (Supabase Auth), authorization, data encryption, and secure credential management for platform APIs.
+
+Understanding these aspects will provide a solid foundation for contributing to the sssync backend development. 

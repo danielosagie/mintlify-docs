@@ -1,0 +1,134 @@
+---
+title: 'Backend Architecture'
+description: 'An overview of the sssync NestJS backend architecture, request lifecycle, and key modules.'
+icon: 'network-wired'
+---
+
+This document provides an overview of the sssync backend architecture, built with NestJS. Understanding these concepts will help you navigate the codebase and contribute effectively.
+
+## Core Technology
+
+-   **NestJS**: A progressive Node.js framework for building efficient, reliable, and scalable server-side applications. It uses TypeScript by default.
+-   **TypeScript**: Provides static typing, improving code quality and maintainability.
+-   **Supabase**: Used as the primary database (PostgreSQL) and for authentication services.
+-   **BullMQ (Potentially)**: For managing background jobs and task queues, especially for long-running operations like large data syncs or webhook processing.
+
+## Request Lifecycle in NestJS
+
+A typical request to the sssync backend follows this flow:
+
+1.  **Incoming HTTP Request**: A client (e.g., frontend application, third-party service) sends an HTTP request to a specific endpoint (e.g., `POST /products/analyze`).
+
+2.  **Middleware (Global/Module-specific)**:
+    -   Requests first pass through any globally registered middleware (e.g., `RequestLoggerMiddleware` for logging request details, security middleware like Helmet, CORS handling).
+    -   Module-specific middleware can also be configured.
+
+3.  **Routing**: NestJS routes the request to the appropriate `@Controller` and method based on the request path and HTTP method (e.g., `ProductsController` for `/products/*` routes).
+
+4.  **Guards**: Before the controller method is executed, guards are invoked. They determine if a given request should be handled by the route handler based on certain conditions (e.g., authentication, authorization, roles, feature flags, rate limiting).
+    -   `SupabaseAuthGuard`: Verifies JWTs from Supabase to authenticate users.
+    -   `FeatureUsageGuard`: Checks if a user's subscription plan allows access to a specific feature.
+    -   `SubscriptionLimitGuard`: Enforces usage limits based on subscription tiers (e.g., number of AI scans).
+    -   `ThrottlerGuard`: Provides rate limiting to prevent abuse.
+    If a guard denies access, NestJS typically returns an appropriate HTTP error response (e.g., `401 Unauthorized`, `403 Forbidden`).
+
+5.  **Pipes**: If all guards pass, pipes are executed. Pipes are used for data transformation and validation.
+    -   **Validation Pipes** (e.g., `ValidationPipe` used globally or per handler): Validate incoming request payloads (body, query params, path params) against DTO (Data Transfer Object) schemas. If validation fails, a `400 Bad Request` response is typically sent.
+    -   **Transformation Pipes** (e.g., `ParseUUIDPipe`, `ParseIntPipe`): Convert incoming data to a desired type (e.g., string path param to a UUID object or number).
+
+6.  **Controller Method Execution**: The actual route handler method within the `@Controller` is executed. This method receives the (potentially transformed and validated) request data (e.g., `@Body()`, `@Query()`, `@Param()`, `@Req()`).
+
+7.  **Service Interaction**: Controllers are responsible for handling HTTP requests and delegating business logic to `@Injectable()` **Services**.
+    -   The controller method calls one or more service methods to perform the required operations.
+    -   Services encapsulate business logic, interact with the database (via `SupabaseService` or other data access layers), call other services, or integrate with external APIs (e.g., `ShopifyApiClient`, AI services).
+
+8.  **Service Logic**: This is where the core work happens:
+    -   Data manipulation, calculations.
+    -   Database operations (CRUD) using `SupabaseService` to interact with Supabase tables.
+    -   Calling external platform APIs via specific adapter clients (e.g., `ShopifyApiClient` in `PlatformAdaptersModule`).
+    -   Enqueueing background jobs (e.g., using BullMQ via `InitialSyncService`).
+    -   Logging activities using `ActivityLogService`.
+
+9.  **Response Generation**: The service method returns a result (or throws an exception) to the controller.
+    -   The controller method then returns this result, which NestJS transforms into an HTTP response.
+    -   Standard HTTP status codes are used (e.g., `200 OK`, `201 Created`, `204 No Content`).
+    -   For errors, NestJS has a built-in exception layer. Custom exceptions or HTTP-specific exceptions (e.g., `BadRequestException`, `NotFoundException`, `UnauthorizedException`) can be thrown from services or controllers, which are then automatically translated into appropriate HTTP error responses.
+    -   Interceptors (not heavily detailed yet but a NestJS feature) can also transform responses or errors globally or per handler.
+
+10. **HTTP Response Sent**: The final HTTP response is sent back to the client.
+
+## Key Modules & Their Responsibilities
+
+The backend is organized into modules, each with a specific domain of responsibility:
+
+-   **`AppModule` (Root Module)**:
+    -   Imports all other major modules.
+    -   Configures global providers, middleware, guards, pipes, and interceptors.
+    -   Often includes `ConfigModule` for environment variable management.
+
+-   **`CommonModule`**:
+    -   Provides shared services and utilities used across multiple modules.
+    -   Examples: `SupabaseService` (for Supabase client interaction), `EncryptionService`, global guards (`SupabaseAuthGuard`), `ActivityLogService`.
+
+-   **`AuthModule`**:
+    -   Handles user authentication and authorization flows.
+    -   OAuth integration with platforms (Shopify, Clover, Square) for connecting seller accounts.
+    -   JWT generation and validation (primarily relying on Supabase Auth, but potentially custom JWTs for state management in OAuth flows).
+    -   Controller: `AuthController`.
+    -   Service: `AuthService`.
+
+-   **`UsersModule`**:
+    -   Manages user-specific data and operations not directly related to authentication.
+    -   Example: Updating user subscription tiers.
+    -   Controller: `UsersController`.
+    -   Service: `UsersService`.
+
+-   **`PlatformConnectionsModule`**:
+    -   Manages the lifecycle of connections to external e-commerce platforms.
+    -   CRUD operations for platform connections (storing credentials securely, status, etc.).
+    -   Controller: `PlatformConnectionsController`.
+    -   Service: `PlatformConnectionsService`.
+
+-   **`ProductsModule`**:
+    -   Core module for managing product data (canonical representation).
+    -   AI-powered features: product image analysis (`ImageRecognitionService`), product detail generation (`AiGenerationService`).
+    -   Publishing products to various platforms (delegating to platform adapters).
+    -   Shopify-specific product operations (fetching locations, inventory).
+    -   Controller: `ProductsController`.
+    -   Service: `ProductsService` (manages canonical data and orchestrates AI/platform interactions).
+
+-   **`PlatformAdaptersModule` & Platform-Specific Adapters (e.g., `ShopifyAdapterModule`)**:
+    -   Provides an abstraction layer for interacting with different e-commerce platform APIs.
+    -   Each platform (Shopify, Square, Clover) will have its own adapter consisting of:
+        -   An `ApiClient` service (e.g., `ShopifyApiClient`): Handles direct communication with the platform's API (GraphQL, REST).
+        -   A `Mapper` service (e.g., `ShopifyMapper`): Transforms data between the platform's specific format and sssync's canonical data model.
+    -   `PlatformAdapterRegistry`: Used to retrieve the correct adapter based on platform type.
+
+-   **`SyncEngineModule`**:
+    -   Orchestrates the data synchronization processes.
+    -   **Initial Sync**: Manages the flow for new platform connections (scan, map, preview, activate sync).
+        -   Services: `InitialSyncService`, `MappingService`.
+        -   Controller: `SyncController`.
+    -   **Webhook Handling**: Processes incoming webhooks from platforms to trigger real-time updates.
+        -   Controller: `WebhookController`.
+        -   Service: `SyncCoordinatorService` (delegates to platform adapters/mappers).
+    -   **Background Jobs/Queues**: Likely uses BullMQ (configured via `QueueModule` or similar) for asynchronous processing of scan jobs, sync jobs, and potentially webhook payloads.
+        -   Processors: `InitialScanProcessor`, `InitialSyncProcessor`.
+
+-   **`CanonicalDataModule` (Conceptual or Actual)**:
+    -   While not explicitly a module in the same way as others, this represents the services responsible for interacting directly with the sssync canonical database tables (e.g., `Products`, `ProductVariants`, `InventoryLevels` in Supabase).
+    -   Services like `ProductsService` (from `ProductsModule`), and potentially dedicated `InventoryService`, `OrdersService` (if created) would be part of this layer, ensuring data integrity for the canonical store.
+
+## Data Flow & Storage
+
+-   **Data Transfer Objects (DTOs)**: Used extensively for defining the shape of data for API requests and responses. They are validated using class-validator and transformed using class-transformer.
+-   **Supabase**: Serves as the primary database. Services interact with Supabase tables using the `SupabaseService` which provides the Supabase client.
+-   **Canonical Data Model**: sssync maintains its own internal, platform-agnostic data model for products, variants, inventory, etc. Platform-specific data is transformed to/from this canonical model by mappers in the adapter layer.
+-   **Encrypted Credentials**: Sensitive data like API keys for platform connections are encrypted using `EncryptionService` before being stored in the database and decrypted when needed.
+
+## Asynchronous Operations
+
+-   For tasks that might take a long time (e.g., scanning an entire Shopify store, synchronizing thousands of products, processing complex webhooks), the system uses background job queues (likely BullMQ with Redis).
+-   Endpoints that trigger these jobs (e.g., `/sync/connections/.../start-scan`) typically return a `202 Accepted` response immediately with a job ID, and the actual work is done by a queue worker/processor.
+
+This architecture aims for modularity, testability, and scalability, leveraging NestJS conventions and features effectively. 

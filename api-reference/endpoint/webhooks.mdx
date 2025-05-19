@@ -1,0 +1,119 @@
+---
+title: 'Incoming Webhooks'
+openapiPath: '../openapi.json'
+---
+
+This section describes the endpoint responsible for receiving and processing incoming webhooks from various third-party platforms your application integrates with (e.g., Shopify, Square, Clover).
+
+Webhooks are essential for real-time data synchronization, allowing external platforms to notify your application about events such as new orders, product updates, inventory changes, etc.
+
+## Generic Platform Webhook Receiver
+
+This is a dynamic endpoint that handles webhooks from different platforms. The specific platform is identified by a path parameter. The system will attempt to verify the webhook's signature (if applicable for the platform and configured) before processing the payload.
+
+**Method & Path:** `POST /webhooks/{platform}`
+
+**Purpose:**
+To provide a single, unified entry point for all incoming webhook notifications from connected external platforms. This endpoint is responsible for initial validation (primarily signature verification) and then delegating the actual processing of the webhook payload to specialized services (like the `SyncCoordinatorService`) which understand the specific data structures and event types for each platform.
+
+**Request:**
+*   **Path Parameter**: `platform` (string, required): Identifies the source platform of the webhook (e.g., `'shopify'`, `'square'`, `'clover'`). This parameter dictates how the webhook is verified and processed.
+*   **Headers**: Headers will vary depending on the source platform. For platforms that support signature verification, specific headers are expected:
+    - **Shopify**: `x-shopify-hmac-sha256` (contains the HMAC SHA256 signature of the payload), `x-shopify-topic`, `x-shopify-shop-domain`.
+    - **Square**: `x-square-signature` (for V2 webhooks).
+    - **Clover**: May use an `Authorization` header with a secret or other verification methods.
+    The endpoint may log all received headers for debugging purposes.
+*   **Request Body**: The raw request body is crucial for signature verification. The `NestJS` application must be configured to provide the raw body. The content of the body is platform-specific and is typically a JSON payload.
+
+**Example Request (Shopify `products/update` Webhook):**
+
+This is an example of how Shopify might call your webhook endpoint. You wouldn't typically make this `curl` call yourself, but it illustrates the components.
+
+```bash
+# This is a conceptual representation. Shopify sends this request to your server.
+# YOUR_API_DOMAIN/webhooks/shopify needs to be configured in your Shopify App settings.
+
+# --- Request from Shopify --- 
+# POST /webhooks/shopify HTTP/1.1
+# Host: YOUR_API_DOMAIN
+# X-Shopify-Topic: products/update
+# X-Shopify-Hmac-Sha256: (Generated HMAC based on your Shopify App Secret and the request body)
+# X-Shopify-Shop-Domain: your-shop.myshopify.com
+# Content-Type: application/json
+# Content-Length: (length of body)
+# 
+# { (Raw JSON body for the products/update event) 
+#   "id": 9876543210,
+#   "title": "Updated Product Title",
+#   "variants": [
+#     { "id": 1234509876, "price": "29.99", "sku": "NEW-SKU-123" }
+#   ]
+#   // ... other product fields
+# }
+```
+
+To test locally, you might use a tool like `ngrok` to expose your local server and Shopify's webhook testing feature, or send a simulated request with `curl` (ensure your HMAC calculation matches if testing verification):
+
+```bash
+# Simulated curl for local testing (HMAC verification might fail if secret mismatch or body changes)
+curl -X POST "http://localhost:YOUR_PORT/webhooks/shopify" \
+     -H "X-Shopify-Topic: products/update" \
+     -H "X-Shopify-Hmac-Sha256: YOUR_CALCULATED_HMAC_FOR_BODY" \
+     -H "X-Shopify-Shop-Domain: test-shop.myshopify.com" \
+     -H "Content-Type: application/json" \
+     -d '{ 
+       "id": 9876543210,
+       "title": "Updated Product Title",
+       "variants": [
+         { "id": 1234509876, "price": "29.99", "sku": "NEW-SKU-123" }
+       ]
+     }'
+```
+
+**Response:**
+- `200 OK`: The webhook was successfully received, its signature (if applicable) was verified, and it has been accepted for processing (typically queued for asynchronous handling).
+  The response body will be:
+
+  **Example Success Response Body (200 OK):**
+  ```json
+  {
+    "received": true
+  }
+  ```
+- `400 Bad Request`: The request was malformed. This can occur if, for example, the raw body is missing when it's required for signature verification, or if the `platform` parameter is problematic in a way not caught by other checks.
+    **Example Error Response Body (400 Bad Request - e.g. missing raw body for Shopify):**
+    ```json
+    {
+        "statusCode": 400,
+        "message": "Raw body required for Shopify webhook verification but not found.",
+        "error": "Bad Request"
+    }
+    ```
+
+- `401 Unauthorized`: Webhook signature verification failed, or the `platform` identifier is unrecognized or misconfigured for verification. This is a critical error indicating the webhook may not be legitimate or there's a configuration issue (e.g., incorrect shared secret).
+    **Example Error Response Body (401 Unauthorized - Shopify HMAC mismatch):**
+    ```json
+    {
+        "statusCode": 401,
+        "message": "Shopify HMAC signature verification failed.",
+        "error": "Unauthorized"
+    }
+    ```
+
+- `500 Internal Server Error`: An unexpected error occurred on the server during initial webhook reception or validation (e.g., if the raw body is unexpectedly unavailable due to a misconfiguration).
+
+**Important Considerations for New Engineers:**
+
+*   **Signature Verification:** This is paramount for security. For each new platform integrated, ensure that its webhook signature verification logic is implemented correctly in the `WebhookController` or a dedicated verification service. Secrets required for verification (like Shopify's Shared Secret, Square's Signature Key) must be securely stored and accessed (e.g., via `ConfigService` from environment variables).
+*   **Raw Body Requirement:** Emphasize that for signature verification to work, the application must be configured to make the raw, unparsed request body available to the controller method handling this endpoint.
+*   **Payload Parsing & Processing:** The `SyncCoordinatorService` (or a similar delegated handler) is responsible for parsing the platform-specific payload *after* signature verification and translating it into actions within the sssync system. This processing should ideally be done asynchronously (e.g., by queuing a job) to ensure the webhook endpoint can respond quickly to the sending platform.
+*   **Idempotency:** Webhook handlers should be designed to be idempotent. Platforms may resend webhooks if they don't receive a timely success response (typically a `2xx` status code). Processing the same event multiple times should not lead to duplicated data, incorrect state changes, or errors.
+*   **Error Handling & Logging:** Robust error handling within the webhook controller and any downstream services is critical. Detailed logging of received webhooks (headers, platform, a non-sensitive part of the payload if possible for debugging), verification status, and processing outcomes is essential for diagnosing issues.
+*   **Platform-Specific Logic:** The `handleWebhook` method in the `SyncCoordinatorService` will likely have a switch or strategy pattern to delegate to platform-specific handlers (e.g., `ShopifyWebhookHandler`, `SquareWebhookHandler`).
+
+```mdx
+---
+title: 'Receive Platform Webhook'
+openapi: 'POST /webhooks/{platform}'
+---
+``` 

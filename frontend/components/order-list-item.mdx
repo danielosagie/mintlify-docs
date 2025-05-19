@@ -1,0 +1,71 @@
+---
+title: 'Component: OrderListItem'
+description: 'Documentation for the OrderListItem component, used to display individual orders in a list.'
+icon: 'list-ordered'
+---
+
+The `OrderListItem` component is a reusable UI element designed to display a summary of an individual order within a list (e.g., on the `OrdersScreen` or `InventoryOrdersScreen`).
+
+Located at `sssync_mobile_test/src/components/OrderListItem.tsx`.
+
+## Purpose
+
+-   To provide a consistent and informative representation of each order.
+-   To encapsulate the layout and styling for an order summary, making lists of orders cleaner and easier to manage.
+
+## Props
+
+-   **`order` (Required)**: An object containing the details of the order to be displayed. Key fields within this object would typically include:
+    -   `id` or `orderNumber` (string/number): Unique identifier for the order.
+    -   `customerName` (string, optional): Name of the customer.
+    -   `date` (string/Date): Date the order was placed.
+    -   `totalAmount` (number): Total monetary value of the order.
+    -   `currency` (string, e.g., "USD"): Currency of the total amount.
+    -   `status` (string): Current status of the order (e.g., "Pending", "Shipped", "Delivered", "Cancelled").
+    -   `platform` (string): The sales channel/platform where the order originated (e.g., "Shopify", "Square").
+    -   `itemCount` (number, optional): Number of items in the order.
+    -   `platformImageUrl` or `firstItemImageUrl` (string, optional): URL for an image representing the platform or a primary item in the order.
+
+## Key Features & Logic
+
+-   **Data Display**: Renders key order details such as order ID, customer name, date, total amount, status, and platform.
+-   **Visual Cues**: Uses helper functions to determine appropriate visual indicators:
+    -   `getStatusColor(status)`: Returns a color based on the order status (e.g., green for "Delivered", orange for "Pending").
+    -   `getStatusIcon(status)`: Returns an icon name or component corresponding to the order status.
+    -   `getPlatformIcon(platform)`: Returns an icon representing the source platform.
+-   **Date Formatting**: Uses `formatDate(dateString)` to present the order date in a user-friendly format.
+-   **Layout**: Arranges the order information in a structured and readable manner, often within a `Card` or similar container.
+
+## Helper Functions (Internal or Imported)
+
+-   **`getStatusColor(status)`**: Takes an order status string and returns a color code. This helps in visually distinguishing orders based on their current state.
+-   **`getStatusIcon(status)`**: Takes an order status string and returns an icon identifier (e.g., name for an icon font). This provides a quick visual cue for the order's progress.
+-   **`getPlatformIcon(platform)`**: Takes a platform identifier string (e.g., "shopify") and returns an icon for that platform.
+-   **`formatDate(dateString)`**: Takes a date string (or Date object) and converts it into a more readable format (e.g., "Oct 26, 2023" or "2 hours ago").
+
+## Usage Example
+
+```tsx
+import OrderListItem from '../components/OrderListItem';
+import { FlatList, View } from 'react-native';
+
+const ordersData = [
+  { 
+    id: '123', customerName: 'Jane Doe', date: '2023-10-26T10:00:00Z', 
+    totalAmount: 49.99, currency: 'USD', status: 'Shipped', platform: 'Shopify' 
+  },
+  // ... more orders
+];
+
+const OrdersListScreen = () => {
+  return (
+    <FlatList
+      data={ordersData}
+      renderItem={({ item }) => <OrderListItem order={item} />}
+      keyExtractor={item => item.id}
+    />
+  );
+};
+```
+
+This component is crucial for presenting order information clearly and consistently, allowing users to quickly scan and understand the status of their sales. 

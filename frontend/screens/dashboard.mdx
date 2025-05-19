@@ -1,0 +1,103 @@
+---
+title: 'Screen: Dashboard'
+description: 'Documentation for the DashboardScreen, the main landing page for authenticated users.'
+icon: 'layout-dashboard'
+---
+
+The `DashboardScreen` serves as the central hub or main landing page for users after they have successfully logged into the sssync mobile application.
+
+Located at `sssync_mobile_test/src/screens/DashboardScreen.tsx`.
+
+## Key Functionalities
+
+While the provided outline is minimal, a typical dashboard screen in this context would likely feature:
+
+-   **Summary Information**: Displaying key metrics or summaries relevant to the user, such as:
+    -   Number of connected platforms.
+    -   Overall sync status or recent sync activity.
+    -   Quick overview of inventory levels or recent orders.
+    -   Alerts or notifications requiring user attention.
+-   **Quick Actions/Navigation**: Providing easy access to common tasks or important sections of the app, such as:
+    -   Button to add a new product listing.
+    -   Links to manage platform connections.
+    -   Shortcuts to inventory or orders sections.
+-   **Data Visualization (Potentially)**: Charts or graphs summarizing sales data, inventory trends, or platform performance (e.g., using `react-native-chart-kit` if integrated here).
+-   **Welcome Message/User Information**: Personalizing the experience with a greeting.
+
+## State Management
+
+The `DashboardScreen` would manage state related to:
+
+-   Data fetched for display (e.g., connection statuses, summary counts, recent activity feeds).
+-   Loading indicators while fetching data.
+-   Error states if data fetching fails.
+
+## Major Functions & Logic
+
+-   **Data Fetching**: On screen mount (e.g., using `useEffect`), it would likely make one or more asynchronous API calls to the backend to retrieve the data needed for display.
+-   **Data Processing/Formatting**: Transforming raw data from the API into a display-friendly format.
+-   **Navigation Handlers**: Functions to navigate to other screens when quick action buttons or links are tapped.
+
+## User Interactions
+
+-   Viewing summarized information and metrics.
+-   Tapping on quick action buttons or links to navigate to other parts of the app.
+-   Potentially interacting with charts or data visualizations (e.g., filtering, drilling down).
+
+## Error Handling & Feedback
+
+-   Displaying loading indicators while data is being fetched.
+-   Showing appropriate error messages or placeholder content if data fetching fails or if there's no data to display.
+
+## Usage Example
+
+`DashboardScreen` is typically used as a route within a navigator, often as the initial screen in a Tab Navigator or a Stack Navigator after login.
+
+```tsx
+// Example: Integrating DashboardScreen into a Tab Navigator
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import DashboardScreen from '../screens/DashboardScreen';
+import InventoryScreen from '../screens/InventoryScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Or your preferred icon library
+
+const Tab = createBottomTabNavigator();
+
+const MainTabNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
+          } else if (route.name === 'Inventory') {
+            iconName = focused ? 'package-variant-closed' : 'package-variant';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'account-circle' : 'account-circle-outline';
+          }
+          return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#16A34A', // Example color
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false, // Usually, screens in tabs manage their own headers
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      {/* Add other tab screens like Orders, Marketplace, etc. */}
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+};
+
+export default MainTabNavigator;
+
+// In your AppNavigator.tsx or similar root navigation file:
+// ...
+// <Stack.Screen name="AppTabs" component={MainTabNavigator} />
+// ...
+```
+
+As the main entry point post-login, the `DashboardScreen` plays a vital role in providing users with an at-a-glance overview of their e-commerce operations within sssync and guiding them to relevant features. 

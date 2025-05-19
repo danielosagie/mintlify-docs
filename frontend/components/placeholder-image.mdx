@@ -1,0 +1,78 @@
+---
+title: 'Component: PlaceholderImage / Placeholder'
+description: 'Documentation for placeholder image components used for loading states or when actual images are unavailable.'
+icon: 'image-off'
+---
+
+The sssync mobile application utilizes placeholder image components, likely named `PlaceholderImage` and/or `Placeholder`, to display visual placeholders in various situations, such as when an image is loading, if an image URL is broken, or when no image is available for an item.
+
+Located at `sssync_mobile_test/src/components/PlaceholderImage.tsx` and potentially `sssync_mobile_test/src/components/Placeholder.tsx` (if distinct).
+
+## Purpose
+
+-   To improve user experience by providing a visual cue instead of an empty space or broken image icon when an actual image is not ready or available.
+-   To maintain UI consistency in lists or grids where some items might have images and others might not.
+-   To offer different types of placeholders (plain color, gradient, icon, text) to suit various contexts.
+
+## Props (`PlaceholderImageProps`)
+
+Based on the outline for `PlaceholderImage.tsx` (and assuming `Placeholder.tsx` might be similar or a wrapper):
+
+-   **`size?: number` (Optional, defaults to `100`)**: The width and height of the placeholder square.
+-   **`borderRadius?: number` (Optional, defaults to `8`)**: The border radius for the placeholder, to create rounded corners.
+-   **`color?: string` (Optional, defaults to `#555555`)**: The primary color used for plain backgrounds or as a base for gradients/icons.
+-   **`type?: 'plain' | 'gradient' | 'icon' | 'text'` (Optional, defaults to `'plain'`)**: Determines the style of the placeholder:
+    -   `'plain'`: A solid background color.
+    -   `'gradient'`: A gradient background, possibly using `color` and an adjusted version, or `gradientColors`.
+    -   `'icon'`: Displays a specified icon (e.g., a default image icon) in the center.
+    -   `'text'`: Displays specified text in the center.
+-   **`icon?: string` (Optional, defaults to `'image'`)**: The name of the icon to display if `type` is `'icon'` (e.g., from `lucide-react-native`).
+-   **`text?: string` (Optional, defaults to `''`)**: The text to display if `type` is `'text'`.
+-   **`gradientColors?: string[] | null` (Optional, defaults to `null`)**: An array of color strings to define a custom gradient. If not provided and `type` is `'gradient'`, the gradient might be generated from the base `color`.
+-   **`style?: ViewStyle` (Optional, defaults to `{}`)**: Allows for additional custom styling to be applied to the placeholder container.
+
+## Key Features & Logic
+
+-   **Dynamic Content Rendering (`renderContent()`)**: A core function that determines what to render inside the placeholder based on the `type` prop:
+    -   If `type` is `'icon'`, it renders an icon component with the specified `icon` name and `color`.
+    -   If `type` is `'text'`, it renders a `Text` component with the specified `text` and `color`.
+    -   If `type` is `'gradient'`, it renders a gradient view (e.g., using `expo-linear-gradient`) with `gradientColors` or colors derived from the base `color`.
+    -   If `type` is `'plain'`, it simply uses the `color` for the background of the main view.
+-   **Color Adjustment (`adjustColor(color, amount)`)**: An internal utility function to lighten or darken a given hex `color` by a specified `amount`. This is likely used to generate secondary colors for gradients or icon/text highlights if not explicitly provided.
+-   **Styling**: Applies styles for `size`, `borderRadius`, and the main `color` to the container view. Custom `style` props are merged.
+
+## Differentiation between `PlaceholderImage.tsx` and `Placeholder.tsx`
+
+-   The provided outline details `PlaceholderImage.tsx`. 
+-   If `Placeholder.tsx` exists and is distinct, it might be a more generic placeholder component (not specifically for images), or it could be a wrapper/variant of `PlaceholderImage`.
+-   Without a specific outline for `Placeholder.tsx`, its exact functionality and props are assumed to be similar or a subset/superset of `PlaceholderImage.tsx` if it serves a related purpose.
+
+## Usage Example
+
+```tsx
+import PlaceholderImage from '../components/PlaceholderImage';
+import { Image, View } from 'react-native';
+import { useState } from 'react';
+
+const ProductItem = ({ imageUrl }) => {
+  const [imageError, setImageError] = useState(false);
+
+  if (!imageUrl || imageError) {
+    return <PlaceholderImage size={80} type="icon" icon="package" />;
+  }
+
+  return (
+    <Image 
+      source={{ uri: imageUrl }}
+      style={{ width: 80, height: 80, borderRadius: 8 }}
+      onError={() => setImageError(true)}
+    />
+  );
+};
+
+const GalleryItem = ({ textContent }) => {
+  return <PlaceholderImage size={120} type="text" text={textContent.substring(0, 3).toUpperCase()} color="#4A90E2" />
+}
+```
+
+These placeholder components are essential for creating a polished and resilient UI that gracefully handles missing or loading visual media. 

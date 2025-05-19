@@ -1,0 +1,79 @@
+---
+title: 'Screen: Product Detail'
+description: 'Documentation for the ProductDetailScreen, which displays detailed information about a specific product passed via route parameters.'
+icon: 'tag'
+---
+
+The `ProductDetailScreen` is responsible for displaying comprehensive information about a single product. Users typically navigate to this screen from a product list (e.g., `MarketplaceScreen`). The current implementation displays data passed to it via route parameters rather than fetching it dynamically.
+
+Located at `sssync_mobile_test/src/screens/ProductDetail.tsx`.
+
+## Key Functionalities
+
+-   **Display Product Information**: Shows details of a product based on the `item` object received in `route.params`.
+    -   Product title
+    -   Price
+    -   Platform
+    -   Image (uses a placeholder if `item.image` is not available).
+    -   Stats section for Sales, Rating, and Views (from `item.sales`, `item.rating`, `item.views`).
+-   **Navigation**: Includes a back button in the header to return to the previous screen.
+-   **Action Buttons (UI Only)**: Displays "Edit Listing" and "View Analytics" buttons. The `onPress` handlers for these buttons are not currently implemented in the provided code.
+
+## Route Params
+
+-   **`route.params.item`**: The screen expects an `item` object to be passed as a route parameter. This object should contain the product details to be displayed (e.g., `title`, `price`, `platform`, `image`, `sales`, `rating`).
+    -   If `route.params` or `route.params.item` is undefined, it defaults to an empty object, and the screen will display placeholder values.
+
+## Props
+
+-   **`route`**: The React Navigation route prop, used to access `route.params.item`.
+-   **`navigation`**: The React Navigation prop, used for the back button (`navigation.goBack()`).
+
+## State Management
+
+-   This screen is currently stateless regarding the product data itself, as it relies entirely on the `item` prop passed via `route.params`.
+-   It does not manage `isLoading` or `error` states related to data fetching, as no data fetching occurs within the component.
+
+## Major Functions & Logic
+
+-   The component primarily focuses on rendering the data from the `item` prop.
+-   No internal data fetching logic (e.g., `fetchProductDetails`) is present in the current version.
+
+## Usage Example
+
+`ProductDetailScreen` is navigated to from other screens, typically by passing an `item` object containing the product data.
+
+```tsx
+// Example of navigating to ProductDetailScreen (e.g., from MarketplaceScreen.tsx)
+
+// In MarketplaceItem component (part of MarketplaceScreen.tsx):
+// ...
+// <TouchableOpacity 
+//   style={styles.gridItem}
+//   onPress={() => {
+//     // 'item' here is the specific marketplace item from the list
+//     navigation.getParent()?.navigate('ProductDetail', { item }); 
+//   }}
+// >
+// ...
+
+
+// In AppNavigator.tsx (part of AppStackParamList):
+// export type AppStackParamList = {
+//   // ... other screens
+//   ProductDetail: { item: any }; // Define that ProductDetail expects an 'item' param
+//   Marketplace: undefined; // Assuming MarketplaceScreen is also in this stack
+// };
+```
+
+When a user taps on an item in `MarketplaceScreen`, it navigates to `ProductDetailScreen`, passing the selected `item` object.
+
+## UI Components
+
+-   `ScrollView` to allow content to be scrollable.
+-   `Image` component for the product image.
+-   Standard `Text` and `View` components for layout and information display.
+-   Custom `Button` component for action buttons.
+-   Icons from `react-native-vector-icons/MaterialCommunityIcons` for header and platform info.
+
+This screen provides a focused view of a single product. Future enhancements might include fetching more detailed data dynamically based on a `productId` and implementing the action buttons. 

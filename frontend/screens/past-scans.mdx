@@ -1,0 +1,98 @@
+---
+title: 'Screen: Past Scans'
+description: 'Documentation for the PastScansScreen, allowing users to view and reload previously created products/scans.'
+icon: 'history'
+---
+
+The `PastScansScreen` provides users with a history of their previously created products, which might have originated from AI-powered scans or direct creation. Users can view these entries and reload them into the `AddListingScreen` to continue editing or use as a template.
+
+Located at `sssync_mobile_test/src/screens/PastScansScreen.tsx`.
+
+## Key Functionalities
+
+-   **Display List of Past Scans/Products**: Shows a list of products created by the authenticated user.
+    -   Each item displays title, creation date, SKU, price, and status (active, archived, draft).
+-   **Data Fetching from Supabase**: 
+    -   `fetchPastScans()`: Fetches product data directly from the Supabase `Products` table, including related `ProductVariants` and `ProductImages` for the authenticated user.
+    -   It transforms this data into the `PastScan` interface format.
+-   **Load Scan/Product Data**: Allows a user to select an item and load its data into the `AddListingScreen`.
+    -   `handleLoadScan(scan: PastScan)`: Navigates to `AddListingScreen` with the selected item's data pre-filled as `initialData`, setting `initialStage: 'FORM_REVIEW'` and passing `uploadedImageUrls`.
+-   **Item Rendering**: Uses `renderScanItem` function to display each item in the list, including an icon and text for its status.
+-   **Loading and Error States**: Displays an activity indicator while fetching data and an error message with a retry button if fetching fails.
+-   **Empty State**: Shows a message if no past scans/products are found for the user.
+
+## Core Data Structures & Interfaces
+
+-   **`PastScan` Interface**: Defines the structure of the objects displayed in the list. This interface is populated by transforming data fetched from Supabase `Products` and related tables.
+    -   `id`: Product ID from Supabase.
+    -   `variantId`: The ID of the first product variant.
+    -   `created_at`: Timestamp (from `Products.CreatedAt`).
+    -   `title`, `description`, `price`, `sku`, `barcode`: From the first `ProductVariant`.
+    -   `images`: Array of image URLs from `ProductImages`, sorted by `Position`.
+    -   `platform_details`: Sourced from `ProductVariants.Options` (which should be a JSONB field containing platform-specific configurations).
+    -   `status`: Determined based on `Products.IsArchived` and `ProductVariants.Title` presence (e.g., `draft`, `active`, `archived`).
+
+## Navigation & Type Definitions
+
+-   **`PastScansScreenNavigationProp`**: Type definition for the navigation prop, using `StackNavigationProp` from `@react-navigation/stack` and typed with `AppStackParamList`.
+-   Navigates to `AddListingScreen` via `navigation.navigate('AddListing', { initialData: { ... } })`.
+
+## State Management
+
+-   `scans`: An array of `PastScan` objects.
+-   `loading`: Boolean state for data fetching.
+-   `error`: Stores error messages if fetching fails.
+
+## Major Functions & Logic
+
+-   **`fetchPastScans()`**: 
+    -   Asynchronously fetches data for the logged-in user from Supabase `Products`, including `ProductVariants` and `ProductImages`.
+    -   Transforms the relational data into the flat `PastScan` structure.
+    -   Handles errors and loading states.
+-   **`handleLoadScan(scan: PastScan)`**: 
+    -   Prepares the `initialData` for `AddListingScreen` using the selected `scan` object.
+    -   Sets `initialStage: 'FORM_REVIEW'` to directly take the user to the review stage.
+    -   Passes `productId`, `variantId`, and `uploadedImageUrls` to `AddListingScreen`.
+-   **`renderScanItem({ item }: { item: PastScan })`**: 
+    -   Renders each item, showing title, date, SKU, price, and status with an icon.
+    -   Wraps the item in a `TouchableOpacity` to trigger `handleLoadScan`.
+
+## Usage Example
+
+`PastScansScreen` is typically accessed from a user's profile or a dedicated history section, allowing them to revisit and reuse previous product creation efforts.
+
+```tsx
+// Example of navigating to PastScansScreen (e.g., from a Profile screen)
+// Assuming `navigation` prop is available in the calling component.
+
+// In ProfileScreen.tsx or similar:
+// ...
+// import { useNavigation } from '@react-navigation/native';
+// import { StackNavigationProp } from '@react-navigation/stack';
+// import { AppStackParamList } from '../navigation/AppNavigator'; // Adjust path as needed
+
+// type ProfileScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Profile'>;
+// const navigation = useNavigation<ProfileScreenNavigationProp>();
+// ...
+
+// <Button title="View Past Scans" onPress={() => navigation.navigate('PastScans')} />
+// ...
+
+// In your AppNavigator.tsx (part of AppStackParamList)
+// export type AppStackParamList = {
+//   // ... other screens
+//   PastScans: undefined; // Add this if not already present
+//   AddListing: { initialData?: any };
+// };
+```
+
+When `PastScansScreen` is navigated to, it will automatically fetch and display the list of past scans for the authenticated user.
+
+## UI Components
+
+-   `FlatList` to display the list of past scans.
+-   `Card` component for each scan item.
+-   `ActivityIndicator` for loading state.
+-   Custom `Button` for retry action.
+-   Icons from `react-native-vector-icons/MaterialCommunityIcons`.
+-   Includes a simple header with a back button and title. 

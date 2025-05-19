@@ -1,0 +1,108 @@
+---
+title: 'Square Authentication'
+openapiPath: '../openapi.json'
+---
+
+This section covers the API endpoints used for authenticating with Square. It follows the standard OAuth 2.0 authorization code grant flow to enable sssync to access a user's Square account data.
+
+## Square Login
+
+Initiates the OAuth 2.0 authorization code flow by redirecting the user to Square's authorization server. The user will be prompted to log in to their Square account (if not already logged in) and approve the permissions requested by sssync.
+
+**Method & Path:** `GET /auth/square/login`
+
+**Expected Query Parameters:**
+*   `userId` (string, required): Your system's unique identifier for the user. This is securely embedded within the `state` parameter passed to Square and is used upon callback to correctly associate the Square connection with the sssync user.
+*   `finalRedirectUri` (string, optional): The URL to which the user should be redirected after the entire Square OAuth flow (including the callback to `/auth/square/oauth-callback`) completes successfully. If omitted, a default URI configured on the backend will be used.
+
+**Example Request:**
+
+Your application redirects the user's browser to:
+```
+https://YOUR_API_DOMAIN/auth/square/login?userId=user-jkl-456&finalRedirectUri=https%3A%2F%2Fyourapp.com%2Fsquare-auth-return
+```
+
+Simulating with `curl` (shows headers, actual response is a redirect):
+```bash
+curl -X GET "https://YOUR_API_DOMAIN/auth/square/login?userId=user-jkl-456&finalRedirectUri=https%3A%2F%2Fyourapp.com%2Fsquare-auth-return" -v
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 302 Found):** The client (e.g., browser) is redirected to Square's authorization page. The `Location` header of the response will contain the Square URL. The user then authorizes your application.
+
+    **Example Success Response Headers:**
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://connect.squareup.com/oauth2/authorize?client_id=YOUR_SQUARE_APP_ID&response_type=code&scope=ITEMS_READ+ITEMS_WRITE+INVENTORY_READ+INVENTORY_WRITE&redirect_uri=https%3A%2F%2FYOUR_API_DOMAIN%2Fauth%2Fsquare%2Foauth-callback&state=GENERATED_STATE_JWT_FOR_USER_JKL_456
+    ```
+
+*   **On Error (HTTP 400 Bad Request / HTTP 302 Found with error params):** If the `userId` is missing, a 400 error may be returned. If there are issues with the backend configuration for Square integration, the system might redirect to an error page or the `finalRedirectUri` with appropriate error query parameters.
+
+    **Example Error Response (400 Bad Request if `userId` is missing):**
+    ```http
+    HTTP/1.1 400 Bad Request
+    Content-Type: application/json; charset=utf-8
+
+    {
+      "statusCode": 400,
+      "message": "Missing required query parameter: userId",
+      "error": "Bad Request"
+    }
+    ```
+
+```mdx
+---
+title: 'Square Login'
+openapi: 'GET /auth/square/login'
+---
+```
+
+## Square OAuth Callback
+
+After the user authorizes (or denies) the application on Square, Square redirects the user back to this endpoint. This callback is responsible for handling the authorization `code` (if successful) or error details provided by Square, and then exchanging the code for an access token.
+
+**Method & Path:** `GET /auth/square/oauth-callback`
+
+**Expected Query Parameters (from Square):**
+*   `code` (string, optional): The authorization code from Square if the user granted permission. This is then used to obtain an access token.
+*   `state` (string, required): The opaque state string your application initially sent to Square via the `/auth/square/login` endpoint. It's essential for CSRF protection and for retrieving user-specific context like `userId` and `finalRedirectUri`.
+*   `response_type` (string, optional): Typically `code`, indicating the authorization code grant type.
+*   `error` (string, optional): An error code (e.g., `access_denied`) if the authorization failed or was denied by the user.
+*   `error_description` (string, optional): A human-readable description of the error, if one occurred.
+
+**Example Incoming Request from Square (URL called by Square):**
+
+Successful authorization:
+```
+https://YOUR_API_DOMAIN/auth/square/oauth-callback?code=SQUARE_AUTHORIZATION_CODE&response_type=code&state=GENERATED_STATE_JWT
+```
+User denies authorization or error occurs:
+```
+https://YOUR_API_DOMAIN/auth/square/oauth-callback?error=access_denied&error_description=The%20user%20denied%20access%20to%20the%20application.&state=GENERATED_STATE_JWT
+```
+
+**What you get back (Response):**
+*   **On Success (HTTP 302 Found):** The user is redirected to the `finalRedirectUri` (originally provided to `/auth/square/login` and retrieved from the validated `state`). The redirect URI will typically include query parameters indicating a successful connection.
+
+    **Example Success Response Headers (Redirect to `finalRedirectUri`):
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://yourapp.com/square-auth-return?connection=square&status=success&userId=user-jkl-456
+    ```
+
+*   **On Error (HTTP 302 Found with error params, or HTTP 400/401/500):**
+    *   If the `state` is invalid/expired, or if Square returns an `error` parameter, the user is redirected to the `finalRedirectUri` (or a default error page) with query parameters detailing the error.
+    *   If crucial parameters like `state` are missing in Square's callback, an HTTP 400 Bad Request might be directly returned.
+
+    **Example Error Response Headers (Redirect on `access_denied` from Square):
+    ```http
+    HTTP/1.1 302 Found
+    Location: https://yourapp.com/square-auth-return?connection=square&status=error&message=Square+access+denied+by+user
+    ```
+
+```mdx
+---
+title: 'Square OAuth Callback'
+openapi: 'GET /auth/square/oauth-callback'
+---
+``` 

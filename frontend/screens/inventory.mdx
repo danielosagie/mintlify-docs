@@ -1,0 +1,104 @@
+---
+title: 'Screen: Inventory Management & Sync'
+description: 'Documentation for the InventoryScreen, focusing on displaying inventory and managing the initial platform connection and synchronization process.'
+icon: 'archive'
+---
+
+The `InventoryScreen` serves a dual purpose: displaying the user's product inventory and guiding the user through the initial synchronization process for new platform connections. It includes a multi-step workflow for scanning platform data, reviewing mapping suggestions, and activating the sync.
+
+Located at `sssync_mobile_test/src/screens/InventoryScreen.tsx`.
+
+**Note:** The current implementation features a placeholder `apiClient` for backend calls and uses `mockInventoryItems` for the main inventory display when not in the migration/sync flow or when viewing the demo.
+
+## Key Functionalities
+
+-   **Inventory Display (Demo/Synced State)**:
+    -   Shows a list of inventory items (currently `mockInventoryItems` or an empty state).
+    -   Each item can display an image (or placeholder), title, price, quantity, and platform badges.
+    -   Includes search, filter (by platform), and sort functionalities for the inventory list.
+    -   A Floating Action Button (FAB) to navigate to an "Add Listing" screen (navigation action not yet implemented).
+-   **Initial Platform Sync Workflow**:
+    -   **Prompt**: If no synced connections are detected, prompts the user to start their first sync/migration.
+    -   **`startInitialScan(connectionId)`**: Initiates an initial product scan on a platform by calling `POST /sync/connections/{connectionId}/start-scan`.
+    -   **`pollConnectionStatus(connectionId, targetState)`**: Periodically calls `GET /platform-connections/{connectionId}` to check the connection status, waiting for it to reach a `targetState` (e.g., `needs_review` after scan, or `active`/`syncing` after activation).
+    -   **`fetchScanResults(connectionId)`**: After successful scan, retrieves scan summary (`GET /sync/connections/{connectionId}/scan-summary`) and mapping suggestions (`GET /sync/connections/{connectionId}/mapping-suggestions`).
+    -   **Review UI (Placeholder)**: A section for users to review scan summaries and mapping suggestions. The actual UI for reviewing and modifying mappings is marked as a TODO.
+    -   **`submitConfirmedMappings(connectionId, confirmedMatches)`**: Sends user-confirmed product mappings via `POST /sync/connections/{connectionId}/confirm-mappings`. Currently sends dummy data.
+    -   **`activateSync(connectionId)`**: Triggers the full initial synchronization via `POST /sync/connections/{connectionId}/activate-sync`.
+-   **Status Display**: Renders UI feedback for different stages of the sync workflow (`scanning`, `reviewing`, `confirming`, `activating`, `error`).
+-   **Demo Mode**: Allows viewing a demo inventory using `mockInventoryItems` if the sync process is not active.
+
+## Core Data Structures & Interfaces
+
+-   **`InventoryItemData`**: Defines the structure for individual inventory items (used with mock data).
+-   **`ConnectionStatusResponse`**: Expected structure for responses from `GET /platform-connections/{connectionId}`.
+-   **`ConfirmMappingsDto`**: Defines the payload for `submitConfirmedMappings`.
+
+## State Management
+
+Key state variables include:
+
+-   `searchQuery`, `filter`, `sort`: For inventory list controls.
+-   `showDemo`: Toggles the demo inventory view.
+-   `hasSyncedConnections`: Tracks if any platform connection is considered active/synced.
+-   `migrationState`: Manages the current stage of the sync workflow (e.g., `idle`, `prompt`, `scanning`, `reviewing`, `error`).
+-   `activeConnectionId`: Stores the ID of the platform connection currently undergoing the sync process.
+-   `scanSummary`, `mappingSuggestions`: To store data fetched during the sync workflow.
+-   `migrationError`: Stores error messages related to the sync process.
+
+## Major Functions & Logic
+
+-   **Inventory Display Components**:
+    -   `InventoryItem` component: Renders each item in the list.
+    -   `getPlatformColor()`: Utility to get platform-specific colors.
+    -   `renderSortLabel()`: Renders UI text for current sort option.
+-   **Initial Platform Sync Workflow Functions**:
+    -   `useEffect` hook: Checks connection status on load to determine if the sync prompt should be shown.
+    -   The sequence: `startInitialScan` -> `pollConnectionStatus` (for `needs_review`) -> `fetchScanResults` -> (User Review UI - TODO) -> `submitConfirmedMappings` -> `activateSync` -> `pollConnectionStatus` (for `active`/`syncing`).
+    -   `renderMigrationStatus()`: Renders different UI components based on the `migrationState`.
+-   **API Interactions**: Uses a placeholder `apiClient` to simulate calls to backend sync-related endpoints.
+
+## Usage Example
+
+`InventoryScreen` is typically used as one of the main screens in a Tab Navigator, providing users access to their product list and the platform connection management tools.
+
+```tsx
+// Example in a Tab Navigator (e.g., AppNavigator.tsx)
+import InventoryScreen from './path/to/InventoryScreen';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Or your icon library
+// ... other imports
+
+const Tab = createBottomTabNavigator(); // Or your specific tab navigator
+
+function MainAppTabs() {
+  return (
+    <Tab.Navigator>
+      {/* ... other tabs like Dashboard, Orders ... */}
+      <Tab.Screen
+        name="InventoryTab" // Name of the route
+        component={InventoryScreen}
+        options={{
+          title: 'Inventory', // Title displayed in the tab bar
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="storefront-outline" color={color} size={size} />
+          ),
+          // headerShown: false, // If header is managed internally or not needed
+        }}
+      />
+      {/* ... other tabs ... */}
+    </Tab.Navigator>
+  );
+}
+
+export default MainAppTabs;
+```
+
+When a user navigates to this tab, the `InventoryScreen` will initialize its state, check for synced connections, and either display the inventory or guide the user through the initial platform sync process.
+
+## UI Components
+
+-   Uses `FlatList` for inventory display.
+-   Custom components: `Card`, `Button`, `PlaceholderImage` (imported as `Placeholder`).
+-   Utilizes `ActivityIndicator` for loading states during sync operations.
+-   Icons from `react-native-vector-icons/MaterialCommunityIcons`.
+-   Animated views from `react-native-reanimated`. 

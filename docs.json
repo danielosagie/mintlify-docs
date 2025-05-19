@@ -22,14 +22,23 @@
             ]
           },
           {
-            "group": "Essentials",
+            "group": "Developer Essentials",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/settings",
-              "essentials/navigation",
-              "essentials/reusable-snippets"
+              "essentials/introduction",
+              "essentials/project-overview",
+              "essentials/getting-started",
+              "essentials/backend-architecture"
+            ]
+          },
+          {
+            "group": "Frontend Development",
+            "pages": [
+              "frontend/introduction",
+              "frontend/project-setup",
+              "frontend/architecture",
+              "frontend/directory-structure",
+              "frontend/navigation",
+              "frontend/state-management"
             ]
           }
         ]
@@ -46,10 +55,27 @@
           {
             "group": "Endpoint Examples",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/endpoint/shopify-auth",
+              "api-reference/endpoint/clover-auth",
+              "api-reference/endpoint/square-auth",
+              "api-reference/endpoint/platform-connections",
+              "api-reference/endpoint/products-ai",
+              "api-reference/endpoint/products-core",
+              "api-reference/endpoint/products-shopify",
+              "api-reference/endpoint/sync-engine",
+              "api-reference/endpoint/webhooks",
+              "api-reference/endpoint/users"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Design",
+        "groups": [
+          {
+            "group": "Design Philosophy",
+            "pages": [
+              "design/introduction"
             ]
           }
         ]

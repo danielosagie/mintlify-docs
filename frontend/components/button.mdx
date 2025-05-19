@@ -1,0 +1,60 @@
+---
+title: 'Component: Button'
+description: 'Documentation for the reusable Button component.'
+icon: 'mouse-pointer-click'
+---
+
+The `Button` component is a standardized, reusable button element for the sssync mobile application, providing consistent styling and functionality for user actions.
+
+Located at `sssync_mobile_test/src/components/Button.tsx`.
+
+## Purpose
+
+-   To provide a consistent look and feel for all buttons across the application.
+-   To simplify the implementation of buttons by encapsulating common features like loading states, disabled states, and icons.
+-   To support different visual styles (e.g., primary, outlined).
+
+## Props (`ButtonProps`)
+
+-   **`title: string` (Required)**: The text displayed on the button.
+-   **`onPress: () => void` (Required)**: Callback function executed when the button is pressed.
+-   **`style?: ViewStyle` (Optional)**: Custom styles for the button's container `View`.
+-   **`textStyle?: TextStyle` (Optional)**: Custom styles for the button's `Text` label.
+-   **`loading?: boolean` (Optional, defaults to `false`)**: If `true`, displays a loading indicator (e.g., `ActivityIndicator`) instead of the title, and the button might be disabled.
+-   **`disabled?: boolean` (Optional, defaults to `false`)**: If `true`, the button is visually styled as disabled and the `onPress` callback will not be triggered.
+-   **`icon?: string` (Optional)**: Name of an icon to be displayed alongside the button title (e.g., from a library like `lucide-react-native`).
+-   **`outlined?: boolean` (Optional, defaults to `false`)**: If `true`, renders the button with an outline style (e.g., transparent background with a colored border and text) instead of the default filled style.
+
+## Key Features & Logic
+
+-   **Conditional Rendering**: 
+    -   Displays an `ActivityIndicator` when `loading` is `true`.
+    -   Renders an icon next to the title if an `icon` name is provided.
+-   **Styling**: 
+    -   Applies base styles for consistency.
+    -   Applies different styles based on the `outlined` prop.
+    -   Applies disabled styles when `disabled` is `true`.
+    -   Allows for style overrides via `style` and `textStyle` props.
+-   **Accessibility**: Should inherently be accessible due to using standard `TouchableOpacity` or similar touchable components from React Native, but custom implementations should ensure proper accessibility props if needed.
+
+## Usage Example
+
+```tsx
+import Button from '../components/Button';
+
+const MyComponent = () => {
+  const handlePress = () => console.log('Button pressed!');
+
+  return (
+    <>
+      <Button title="Primary Action" onPress={handlePress} />
+      <Button title="With Icon" onPress={handlePress} icon="check-circle" />
+      <Button title="Outlined Button" onPress={handlePress} outlined />
+      <Button title="Loading..." onPress={handlePress} loading />
+      <Button title="Disabled" onPress={handlePress} disabled />
+    </>
+  );
+};
+```
+
+This component is fundamental for user interaction, ensuring that calls to action are clear, consistent, and accessible throughout the application. 
